@@ -1,3 +1,8 @@
 ts_mean(returns, 5)
 close / ts_mean(close, 20) - 1
 -ts_corr(close, volume, 20)
+rank(ts_delta(close, 3))
+-ts_std_dev(returns, 10)
+rank(volume / ts_mean(volume, 20))
+ts_rank(high - low, 15)
+rank(ts_mean(vwap - close, 8))
