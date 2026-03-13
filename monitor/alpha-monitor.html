@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alpha Monitor</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; background: #0b1020; color: #e5e7eb; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .card { background: #121933; border: 1px solid #243056; border-radius: 12px; padding: 16px; }
+    .label { color: #93a4d1; font-size: 12px; margin-bottom: 8px; }
+    .value { font-size: 24px; font-weight: 700; }
+    .muted { color: #9ca3af; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #243056; font-size: 14px; vertical-align: top; }
+    code { white-space: pre-wrap; word-break: break-word; color: #c7d2fe; }
+    .ok { color: #34d399; }
+    .warn { color: #fbbf24; }
+    .bad { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1>Alpha 实时监控</h1>
+  <p class="muted">自动刷新，查看当前是否在跑、最近结果、当前最佳。</p>
+
+  <div class="grid">
+    <div class="card"><div class="label">当前状态</div><div id="status" class="value">-</div></div>
+    <div class="card"><div class="label">更新时间</div><div id="updatedAt" class="value" style="font-size:16px">-</div></div>
+    <div class="card"><div class="label">累计测试</div><div id="tested" class="value">0</div></div>
+    <div class="card"><div class="label">累计批次</div><div id="batches" class="value">0</div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="label">当前最佳</div>
+    <div id="best">暂无</div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="label">当前批次</div>
+    <div id="batch">暂无</div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="label">最近结果</div>
+    <table>
+      <thead><tr><th>ID</th><th>Sharpe</th><th>Fitness</th><th>Expr</th></tr></thead>
+      <tbody id="recent"></tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="label">备注</div>
+    <div id="notes">-</div>
+  </div>
+
+<script>
+async function load() {
+  try {
+    const res = await fetch('./alpha-status.json?ts=' + Date.now());
+    const d = await res.json();
+    document.getElementById('status').textContent = d.status || '-';
+    document.getElementById('updatedAt').textContent = d.updatedAt || '-';
+    document.getElementById('tested').textContent = d.totals?.tested ?? 0;
+    document.getElementById('batches').textContent = d.totals?.batches ?? 0;
+    document.getElementById('notes').textContent = d.notes || '-';
+
+    const best = d.best;
+    document.getElementById('best').innerHTML = best
+      ? `<div><b>${best.alphaId || '-'}</b> | Sharpe: ${best.sharpe} | Fitness: ${best.fitness}</div><div class="muted"><code>${best.expr || ''}</code></div>`
+      : '暂无';
+
+    const batch = (d.currentBatch || []).map(x => `<div><code>${x}</code></div>`).join('');
+    document.getElementById('batch').innerHTML = batch || '暂无';
+
+    const recent = document.getElementById('recent');
+    recent.innerHTML = '';
+    (d.recent || []).forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.alphaId || '-'}</td><td>${r.sharpe ?? '-'}</td><td>${r.fitness ?? '-'}</td><td><code>${r.expr || ''}</code></td>`;
+      recent.appendChild(tr);
+    });
+  } catch (e) {
+    document.getElementById('notes').textContent = '加载失败: ' + e.message;
+  }
+}
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>

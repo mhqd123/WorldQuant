@@ -1,0 +1,52 @@
+{
+  "status": "running",
+  "updatedAt": "2026-03-13 06:36 UTC",
+  "currentBatch": [
+    "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 18))) / (1 + ts_std_dev(returns, 40))",
+    "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 22))) / (1 + ts_std_dev(returns, 35))",
+    "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 25))) / (1 + ts_std_dev(returns, 25))"
+  ],
+  "best": {
+    "alphaId": "qMdvlVEE",
+    "sharpe": 1.8,
+    "fitness": 0.93,
+    "expr": "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 20))) / (1 + ts_std_dev(returns, 40))"
+  },
+  "totals": {
+    "tested": 21,
+    "batches": 7
+  },
+  "recent": [
+    {
+      "alphaId": "N16qrVO8",
+      "sharpe": 1.78,
+      "fitness": 0.91,
+      "expr": "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 30))) / (1 + ts_std_dev(returns, 30))"
+    },
+    {
+      "alphaId": "qMdvlVEE",
+      "sharpe": 1.8,
+      "fitness": 0.93,
+      "expr": "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 20))) / (1 + ts_std_dev(returns, 40))"
+    },
+    {
+      "alphaId": "wp1OEK0p",
+      "sharpe": 0.13,
+      "fitness": 0.02,
+      "expr": "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 25)) * (close / ts_mean(close, 15) - 1)) / (1 + ts_std_dev(returns, 30))"
+    },
+    {
+      "alphaId": "6X138Gm7",
+      "sharpe": 1.79,
+      "fitness": 0.92,
+      "expr": "rank(-(close / vwap - 1) * (volume / ts_mean(volume, 20))) / (1 + ts_std_dev(returns, 30))"
+    },
+    {
+      "alphaId": "E5bYW3mK",
+      "sharpe": 1.47,
+      "fitness": 1.11,
+      "expr": "group_rank(ts_rank(((cashflow_op + operating_income) / (cap + debt_st + 1)) / (1 + ts_std_dev((cashflow_op + operating_income) / (cap + debt_st + 1), 63)), 63), sector)"
+    }
+  ],
+  "notes": "Alpha monitor online. Best current line is VWAP deviation × abnormal volume ÷ volatility penalty."
+}
