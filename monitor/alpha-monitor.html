@@ -54,15 +54,26 @@
   </div>
 
   <div class="card" style="margin-top:16px;">
+    <div class="label">监督状态</div>
+    <div id="supervisor">加载中...</div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
     <div class="label">运行说明</div>
-    <div class="muted">这个页面本身是静态页，但数据来自会被任务实时更新的 <code>alpha-status.json</code>。后续批次会边跑边刷新，不再是手工截图式状态。</div>
+    <div class="muted">这个页面会同时读取 <code>alpha-status.json</code> 和 <code>supervisor-state.json</code>。监督器会检查自动循环是否存活，以及是否超过 10 分钟没有真实活动。</div>
   </div>
 
 <script>
 async function load() {
   try {
-    const res = await fetch('./alpha-status.json?ts=' + Date.now());
+    const ts = Date.now();
+    const res = await fetch('./alpha-status.json?ts=' + ts);
     const d = await res.json();
+    let sup = null;
+    try {
+      const sres = await fetch('./supervisor-state.json?ts=' + ts);
+      sup = await sres.json();
+    } catch {}
     document.getElementById('status').textContent = d.status || '-';
     document.getElementById('updatedAt').textContent = d.updatedAt || '-';
     document.getElementById('tested').textContent = d.totals?.tested ?? 0;
@@ -84,6 +95,19 @@ async function load() {
       tr.innerHTML = `<td>${r.alphaId || '-'}</td><td>${r.sharpe ?? '-'}</td><td>${r.fitness ?? '-'}</td><td><code>${r.expr || ''}</code></td>`;
       recent.appendChild(tr);
     });
+
+    const supEl = document.getElementById('supervisor');
+    if (sup) {
+      supEl.innerHTML = `<div><b>${sup.status || '-'}</b></div>
+        <div class="muted">更新时间: ${sup.updatedAt || '-'}</div>
+        <div class="muted">最近活动: ${sup.lastApiActivityAt || '-'}</div>
+        <div class="muted">Loop PID: ${sup.loopPid || '-'}</div>
+        <div class="muted">故障次数: ${sup.faultCount ?? 0}</div>
+        <div class="muted">最近故障: ${sup.lastFault || '-'}</div>
+        <div class="muted">最近动作: ${sup.lastAction || '-'}</div>`;
+    } else {
+      supEl.textContent = '监督状态不可用';
+    }
   } catch (e) {
     document.getElementById('notes').textContent = '加载失败: ' + e.message;
   }

@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "mode": "auto",
+  "targetSharpe": 2.0,
+  "targetFitness": 1.0,
+  "maxNoImproveRounds": 5,
+  "sleepSeconds": 5,
+  "currentHypothesis": "vwap-volume-vol",
+  "lastAction": "start_batch_1"
+}

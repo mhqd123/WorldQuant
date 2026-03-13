@@ -1,0 +1,10 @@
+{
+  "status": "starting",
+  "updatedAt": null,
+  "lastApiActivityAt": null,
+  "lastAlphaStatusAt": null,
+  "loopPid": null,
+  "faultCount": 0,
+  "lastFault": null,
+  "lastAction": "initialized"
+}
