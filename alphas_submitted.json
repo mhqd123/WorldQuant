@@ -800,6 +800,60 @@
       "turnover": 0.2401,
       "drawdown": 0.0464,
       "ts": "2026-03-13T20:08:36.520915Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 39)) / (1 + ts_std_dev(returns, 20)))",
+      "alpha_id": "A1banzdQ",
+      "sharpe": 2.16,
+      "fitness": 1.54,
+      "turnover": 0.2538,
+      "drawdown": 0.0466,
+      "ts": "2026-03-13T21:02:08.926805Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 39)) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "kqXmn69d",
+      "sharpe": 2.18,
+      "fitness": 1.56,
+      "turnover": 0.2541,
+      "drawdown": 0.0462,
+      "ts": "2026-03-13T21:04:56.627359Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 39)) * (1 - ts_std_dev(returns, 20)))",
+      "alpha_id": "9qK6JzQd",
+      "sharpe": 2.18,
+      "fitness": 1.56,
+      "turnover": 0.2536,
+      "drawdown": 0.0469,
+      "ts": "2026-03-13T21:07:10.347583Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 39)) * rank(1 / (1 + ts_std_dev(returns, 20)))",
+      "alpha_id": "5896Mbe6",
+      "sharpe": 0.5,
+      "fitness": 0.3,
+      "turnover": 0.179,
+      "drawdown": 0.3655,
+      "ts": "2026-03-13T21:09:36.015456Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 39)) * rank(ts_mean(volume, 5) / ts_mean(volume, 39))",
+      "alpha_id": "JjmXbL9l",
+      "sharpe": 1.67,
+      "fitness": 1.11,
+      "turnover": 0.1998,
+      "drawdown": 0.0458,
+      "ts": "2026-03-13T21:11:46.691961Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 39)) * rank(ts_mean(volume, 5) / ts_mean(volume, 39))",
+      "alpha_id": "JjmXbL9l",
+      "sharpe": 1.67,
+      "fitness": 1.11,
+      "turnover": 0.1998,
+      "drawdown": 0.0458,
+      "ts": "2026-03-13T21:12:32.934937Z"
     }
   ]
 }
