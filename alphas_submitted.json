@@ -701,6 +701,33 @@
       "turnover": 0.2558,
       "drawdown": 0.0466,
       "ts": "2026-03-13T17:06:24.167827Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 39))",
+      "alpha_id": "blMPEVZ6",
+      "sharpe": 2.1,
+      "fitness": 1.5,
+      "turnover": 0.2541,
+      "drawdown": 0.0478,
+      "ts": "2026-03-13T18:02:22.650435Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 4)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 37))",
+      "alpha_id": "mLAz9r0x",
+      "sharpe": 2.01,
+      "fitness": 1.46,
+      "turnover": 0.2429,
+      "drawdown": 0.0448,
+      "ts": "2026-03-13T18:03:51.404851Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 18))) * rank(volume / ts_mean(volume, 37))",
+      "alpha_id": "pwEzOKko",
+      "sharpe": 2.09,
+      "fitness": 1.49,
+      "turnover": 0.2557,
+      "drawdown": 0.0465,
+      "ts": "2026-03-13T18:05:39.876834Z"
     }
   ]
 }
