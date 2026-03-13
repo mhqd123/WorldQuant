@@ -1,8 +1,5 @@
-ts_mean(returns, 5)
-close / ts_mean(close, 20) - 1
--ts_corr(close, volume, 20)
-rank(ts_delta(close, 3))
--ts_std_dev(returns, 10)
-rank(volume / ts_mean(volume, 20))
-ts_rank(high - low, 15)
-rank(ts_mean(vwap - close, 8))
+rank(-(close / vwap - 1) * (volume / ts_mean(volume, 15))) / (1 + ts_std_dev(returns, 42))
+rank(-(close / vwap - 1) * (volume / ts_mean(volume, 34))) / (1 + ts_std_dev(returns, 24))
+rank(-ts_delta(vwap, 6) * (volume / ts_mean(volume, 15))) / (1 + ts_std_dev(returns, 52))
+rank((ts_mean(vwap, 5) / ts_mean(vwap, 18) - 1) - (close / ts_mean(close, 9) - 1)) / (1 + ts_std_dev(returns, 44))
+group_rank(((cashflow_op + operating_income) / (cap + debt_st + 1)) / ts_mean(((cashflow_op + operating_income) / (cap + debt_st + 1)), 147), sector)
