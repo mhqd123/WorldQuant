@@ -503,6 +503,51 @@
       "sharpe": 0.77,
       "fitness": 0.33,
       "ts": "2026-03-13T10:26:49.102068Z"
+    },
+    {
+      "expr": "rank(-((close / ts_mean(close, 20)) - 1) * (volume / ts_mean(volume, 20))) / (1 + ts_std_dev(returns, 40))",
+      "alpha_id": "omvvKnRE",
+      "sharpe": 0.54,
+      "fitness": 0.35,
+      "turnover": 0.1403,
+      "drawdown": 0.1359,
+      "ts": "2026-03-13T12:02:41.568244Z"
+    },
+    {
+      "expr": "rank((ts_mean(returns, 20) - ts_mean(returns, 5)) / (1 + ts_std_dev(returns, 60)))",
+      "alpha_id": "YPmmpbWJ",
+      "sharpe": 0.74,
+      "fitness": 0.37,
+      "turnover": 0.264,
+      "drawdown": 0.108,
+      "ts": "2026-03-13T12:04:35.481477Z"
+    },
+    {
+      "expr": "rank(-(close - vwap) / ts_mean(high - low, 20)) * rank(volume / ts_mean(volume, 30))",
+      "alpha_id": "O0kkpMMb",
+      "sharpe": 1.87,
+      "fitness": 1.07,
+      "turnover": 0.2921,
+      "drawdown": 0.0527,
+      "ts": "2026-03-13T12:06:18.286166Z"
+    },
+    {
+      "expr": "rank(-ts_corr(returns, volume / ts_mean(volume, 20), 15)) / (1 + ts_std_dev(returns, 30))",
+      "alpha_id": "d5mmxJ5g",
+      "sharpe": 0.55,
+      "fitness": 0.25,
+      "turnover": 0.1312,
+      "drawdown": 0.1374,
+      "ts": "2026-03-13T12:07:49.438642Z"
+    },
+    {
+      "expr": "group_rank(((cashflow_op + operating_income) / (cap + debt_st + 1)) / (1 + ts_std_dev(((cashflow_op + operating_income) / (cap + debt_st + 1)), 126)), sector)",
+      "alpha_id": "LL661jxM",
+      "sharpe": 0.66,
+      "fitness": 0.52,
+      "turnover": 0.0319,
+      "drawdown": 0.2652,
+      "ts": "2026-03-13T12:16:01.642754Z"
     }
   ]
 }
