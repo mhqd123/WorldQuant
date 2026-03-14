@@ -1322,6 +1322,51 @@
       "turnover": 0.2657,
       "drawdown": 0.0477,
       "ts": "2026-03-14T11:03:29.586630Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) * (1 / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10)))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "9qKaLARV",
+      "sharpe": 2.23,
+      "fitness": 1.61,
+      "turnover": 0.2657,
+      "drawdown": 0.0475,
+      "ts": "2026-03-14T13:02:07.843080Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 30)) * (1 / (1 + ts_std_dev(volume / ts_mean(volume, 30), 10)))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "6X1av9x7",
+      "sharpe": 2.14,
+      "fitness": 1.5,
+      "turnover": 0.2695,
+      "drawdown": 0.0415,
+      "ts": "2026-03-14T13:03:33.322783Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) * (1 / (1 + ts_std_dev(volume / ts_mean(volume, 41), 5)))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "O0kbE8ap",
+      "sharpe": 2.22,
+      "fitness": 1.58,
+      "turnover": 0.2727,
+      "drawdown": 0.0503,
+      "ts": "2026-03-14T13:04:49.384407Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 4)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) * (1 / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10)))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "LL6gAEE2",
+      "sharpe": 2.15,
+      "fitness": 1.58,
+      "turnover": 0.2523,
+      "drawdown": 0.0446,
+      "ts": "2026-03-14T13:06:09.163156Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 19))) * rank((volume / ts_mean(volume, 41)) * (1 / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10)))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "XgL25xmX",
+      "sharpe": 2.23,
+      "fitness": 1.61,
+      "turnover": 0.2657,
+      "drawdown": 0.0475,
+      "ts": "2026-03-14T13:07:25.567058Z"
     }
   ]
 }
