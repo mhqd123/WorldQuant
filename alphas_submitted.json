@@ -1097,6 +1097,78 @@
       "turnover": 0.2726,
       "drawdown": 0.2039,
       "ts": "2026-03-14T04:20:11.282196Z"
+    },
+    {
+      "expr": "rank(-ts_delta(close, 2) / (1 + ts_std_dev(high - low, 20))) * rank(1 / (1 + ts_mean(volume, 30)))",
+      "alpha_id": "wp1zGnR6",
+      "sharpe": 0.38,
+      "fitness": 0.16,
+      "turnover": 0.1338,
+      "drawdown": 0.1359,
+      "ts": "2026-03-14T04:25:15.959003Z"
+    },
+    {
+      "expr": "rank(-(close / ts_mean(close, 5) - 1) / (1 + ts_std_dev(returns, 20))) * rank(1 / (1 + ts_mean(volume, 20)))",
+      "alpha_id": "wp1zGRnd",
+      "sharpe": 0.42,
+      "fitness": 0.2,
+      "turnover": 0.1246,
+      "drawdown": 0.1383,
+      "ts": "2026-03-14T04:33:19.870837Z"
+    },
+    {
+      "expr": "rank(-(close / ts_mean(close, 5) - 1) / (1 + ts_std_dev(returns, 20))) * rank(1 / (1 + volume / ts_mean(volume, 20)))",
+      "alpha_id": "78QXm6rL",
+      "sharpe": 0.16,
+      "fitness": 0.04,
+      "turnover": 0.2726,
+      "drawdown": 0.2039,
+      "ts": "2026-03-14T04:35:54.405997Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 41)) / (1 + ts_std_dev(returns, 20)) * rank(1 / (1 + ts_std_dev(returns, 10)))",
+      "alpha_id": "LL6XYd2v",
+      "sharpe": 0.51,
+      "fitness": 0.3,
+      "turnover": 0.1868,
+      "drawdown": 0.3486,
+      "ts": "2026-03-14T05:01:59.334115Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 41)) / (1 + ts_std_dev(returns, 20)) * rank(ts_mean(volume, 5) / ts_mean(volume, 41))",
+      "alpha_id": "XgLlAag1",
+      "sharpe": 1.75,
+      "fitness": 1.18,
+      "turnover": 0.1983,
+      "drawdown": 0.0461,
+      "ts": "2026-03-14T05:03:20.883425Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(returns, 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "5896dYRX",
+      "sharpe": 2.22,
+      "fitness": 1.59,
+      "turnover": 0.2524,
+      "drawdown": 0.0475,
+      "ts": "2026-03-14T05:04:31.577189Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 18))) * rank(volume / ts_mean(volume, 41)) / (1 + ts_std_dev(returns, 20)) * rank(1 / (1 + ts_std_dev(returns, 10)))",
+      "alpha_id": "RRYawgY1",
+      "sharpe": 0.51,
+      "fitness": 0.3,
+      "turnover": 0.1868,
+      "drawdown": 0.3487,
+      "ts": "2026-03-14T05:05:42.191146Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank(volume / ts_mean(volume, 43)) / (1 + ts_std_dev(returns, 20)) * rank(1 / (1 + ts_std_dev(returns, 10)))",
+      "alpha_id": "KP68Ax5z",
+      "sharpe": 0.51,
+      "fitness": 0.3,
+      "turnover": 0.1864,
+      "drawdown": 0.3485,
+      "ts": "2026-03-14T05:08:07.898736Z"
     }
   ]
 }
