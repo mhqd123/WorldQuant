@@ -1367,6 +1367,51 @@
       "turnover": 0.2657,
       "drawdown": 0.0475,
       "ts": "2026-03-14T13:07:25.567058Z"
+    },
+    {
+      "expr": "rank(-(open - close) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "le2Q7NwO",
+      "sharpe": -0.3,
+      "fitness": -0.08,
+      "turnover": 0.2964,
+      "drawdown": 0.294,
+      "ts": "2026-03-14T15:03:10.680225Z"
+    },
+    {
+      "expr": "rank(-(open - ts_mean(close, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "e7KdLlWz",
+      "sharpe": 1.12,
+      "fitness": 0.5,
+      "turnover": 0.3062,
+      "drawdown": 0.0843,
+      "ts": "2026-03-14T15:04:53.431391Z"
+    },
+    {
+      "expr": "rank(-(open - vwap) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "wp1nLgMp",
+      "sharpe": -0.25,
+      "fitness": -0.06,
+      "turnover": 0.295,
+      "drawdown": 0.2765,
+      "ts": "2026-03-14T15:06:17.029040Z"
+    },
+    {
+      "expr": "rank(-(open - close) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 30)) / (1 + ts_std_dev(volume / ts_mean(volume, 30), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "mLArZ2Wx",
+      "sharpe": -0.39,
+      "fitness": -0.11,
+      "turnover": 0.301,
+      "drawdown": 0.3035,
+      "ts": "2026-03-14T15:07:31.944523Z"
+    },
+    {
+      "expr": "rank(-(open - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "vR9ed52A",
+      "sharpe": 1.54,
+      "fitness": 0.82,
+      "turnover": 0.2978,
+      "drawdown": 0.0809,
+      "ts": "2026-03-14T15:08:56.052819Z"
     }
   ]
 }
