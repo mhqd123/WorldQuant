@@ -1250,6 +1250,60 @@
       "turnover": 0.1978,
       "drawdown": 0.3099,
       "ts": "2026-03-14T08:09:58.724733Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 20)) / (1 + ts_std_dev(volume / ts_mean(volume, 20), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "3qxnG3wO",
+      "sharpe": 2.1,
+      "fitness": 1.44,
+      "turnover": 0.2774,
+      "drawdown": 0.0355,
+      "ts": "2026-03-14T10:01:57.240601Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 30)) / (1 + ts_std_dev(volume / ts_mean(volume, 30), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "N165KaJe",
+      "sharpe": 2.14,
+      "fitness": 1.5,
+      "turnover": 0.2695,
+      "drawdown": 0.0415,
+      "ts": "2026-03-14T10:04:40.526055Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "YPmWl9JR",
+      "sharpe": 2.23,
+      "fitness": 1.61,
+      "turnover": 0.2657,
+      "drawdown": 0.0475,
+      "ts": "2026-03-14T10:06:49.754852Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 4)) / (1 + ts_std_dev(high - low, 20))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "KP6wvKWg",
+      "sharpe": 2.15,
+      "fitness": 1.58,
+      "turnover": 0.2523,
+      "drawdown": 0.0446,
+      "ts": "2026-03-14T10:08:16.708540Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 19))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "pwE1x16V",
+      "sharpe": 2.23,
+      "fitness": 1.61,
+      "turnover": 0.2657,
+      "drawdown": 0.0475,
+      "ts": "2026-03-14T10:11:10.695855Z"
+    },
+    {
+      "expr": "rank(-(close - ts_mean(vwap, 3)) / (1 + ts_std_dev(high - low, 19))) * rank((volume / ts_mean(volume, 41)) / (1 + ts_std_dev(volume / ts_mean(volume, 41), 10))) / (1 + ts_std_dev(returns, 20))",
+      "alpha_id": "pwE1x16V",
+      "sharpe": 2.23,
+      "fitness": 1.61,
+      "turnover": 0.2657,
+      "drawdown": 0.0475,
+      "ts": "2026-03-14T10:13:19.515483Z"
     }
   ]
 }
