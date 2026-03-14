@@ -1,0 +1,27 @@
+[
+  {
+    "alpha_id": "YPmWl9JR",
+    "http": 200,
+    "body": "{\"is\":{\"checks\":[{\"name\":\"LOW_SHARPE\",\"result\":\"PASS\",\"limit\":1.25,\"value\":2.23},{\"name\":\"LOW_FITNESS\",\"result\":\"PASS\",\"limit\":1.0,\"value\":1.61},{\"name\":\"LOW_TURNOVER\",\"result\":\"PASS\",\"limit\":0.01,\"value\":0.2657},{\"name\":\"HIGH_TURNOVER\",\"result\":\"PASS\",\"limit\":0.7,\"value\":0.2657},{\"name\":\"CONCENTRATED_WEIGHT\",\"result\":\"PASS\"},{\"name\":\"LOW_SUB_UNIVERSE_SHARPE\",\"result\":\"PASS\",\"limit\":0.97,\"value\":1.57},{\"name\":\"SELF_CORRELATION\",\"result\":\"PASS\",\"limit\":0.7,\"value\":0.5957},{\"name\":\"MATCHES_COMPETITION\",\"result\":\"PASS\",\"competitions\":[{\"id\":\"challenge\",\"name\":\"Challenge\"}]}]}}"
+  },
+  {
+    "alpha_id": "xAQPN12w",
+    "http": 201,
+    "body": ""
+  },
+  {
+    "alpha_id": "e7Kd3PGz",
+    "http": 201,
+    "body": ""
+  },
+  {
+    "alpha_id": "pwE1x16V",
+    "http": 429,
+    "body": "{\"detail\":\"THROTTLED\"}"
+  },
+  {
+    "alpha_id": "5896dYRX",
+    "http": 429,
+    "body": "{\"detail\":\"THROTTLED\"}"
+  }
+]
