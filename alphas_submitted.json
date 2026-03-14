@@ -1457,6 +1457,78 @@
       "turnover": 0.2697,
       "drawdown": 0.0504,
       "ts": "2026-03-14T16:08:07.950220Z"
+    },
+    {
+      "expr": "group_rank(rank(-ts_delta(close, 3) / (1 + ts_std_dev(returns, 20))), sector) * rank(volume / ts_mean(volume, 20))",
+      "alpha_id": "qMdP0rrv",
+      "sharpe": 1.82,
+      "fitness": 1.22,
+      "turnover": 0.2647,
+      "drawdown": 0.0447,
+      "ts": "2026-03-14T16:47:11.316249Z"
+    },
+    {
+      "expr": "group_rank(rank(-(close / ts_mean(close, 5) - 1) / (1 + ts_std_dev(returns, 20))), sector) * rank(volume / ts_mean(volume, 20))",
+      "alpha_id": "VkE20Y1Y",
+      "sharpe": 1.49,
+      "fitness": 1.03,
+      "turnover": 0.2564,
+      "drawdown": 0.061,
+      "ts": "2026-03-14T16:49:53.084106Z"
+    },
+    {
+      "expr": "group_rank(rank(-ts_delta(close, 2) / (1 + ts_std_dev(high - low, 20))), industry) * rank(volume / ts_mean(volume, 30))",
+      "alpha_id": "589agw2n",
+      "sharpe": 2.04,
+      "fitness": 1.41,
+      "turnover": 0.2697,
+      "drawdown": 0.0429,
+      "ts": "2026-03-14T16:51:25.361555Z"
+    },
+    {
+      "expr": "group_rank(rank(-(close / ts_mean(close, 8) - 1) / (1 + ts_std_dev(returns, 20))), subindustry) * rank(volume / ts_mean(volume, 25))",
+      "alpha_id": "E5bgRvqR",
+      "sharpe": 1.18,
+      "fitness": 0.79,
+      "turnover": 0.2216,
+      "drawdown": 0.0737,
+      "ts": "2026-03-14T16:52:46.675910Z"
+    },
+    {
+      "expr": "group_rank(rank(-ts_delta(close, 3) / (1 + ts_std_dev(returns, 30))), sector) * rank(volume / ts_mean(volume, 30))",
+      "alpha_id": "P06wgYRJ",
+      "sharpe": 1.87,
+      "fitness": 1.3,
+      "turnover": 0.2482,
+      "drawdown": 0.0485,
+      "ts": "2026-03-14T16:55:07.061125Z"
+    },
+    {
+      "expr": "group_rank(rank(-ts_delta(close, 2) / (1 + ts_std_dev(high - low, 18))), industry) * rank(volume / ts_mean(volume, 30))",
+      "alpha_id": "ZYx2agxZ",
+      "sharpe": 2.04,
+      "fitness": 1.41,
+      "turnover": 0.2697,
+      "drawdown": 0.043,
+      "ts": "2026-03-14T17:32:22.492235Z"
+    },
+    {
+      "expr": "group_rank(rank(-ts_delta(close, 2) / (1 + ts_std_dev(high - low, 22))), industry) * rank(volume / ts_mean(volume, 30))",
+      "alpha_id": "P06w5AQp",
+      "sharpe": 2.04,
+      "fitness": 1.41,
+      "turnover": 0.2698,
+      "drawdown": 0.0428,
+      "ts": "2026-03-14T17:33:41.425732Z"
+    },
+    {
+      "expr": "group_rank(rank(-ts_delta(close, 2) / (1 + ts_std_dev(high - low, 20))), sector) * rank(volume / ts_mean(volume, 30))",
+      "alpha_id": "A1bgxpNR",
+      "sharpe": 2.02,
+      "fitness": 1.41,
+      "turnover": 0.2655,
+      "drawdown": 0.044,
+      "ts": "2026-03-14T17:35:02.758130Z"
     }
   ]
 }
