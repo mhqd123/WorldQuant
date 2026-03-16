@@ -26,9 +26,10 @@ def load_status():
         'updatedAt': None,
         'currentBatch': [],
         'best': None,
-        'totals': {'tested': 0, 'batches': 0},
+        'totals': {'tested': 0, 'batches': 0, 'qualified': 0},
         'recent': [],
-        'notes': ''
+        'notes': '',
+        'families': {}
     }
 
 
@@ -77,16 +78,31 @@ def main():
             alpha_id, sharpe_s, fitness_s = m.groups()
             sharpe = parse_float(sharpe_s)
             fitness = parse_float(fitness_s)
+            expr = current_expr or ''
+            family = 'uncategorized'
+            if 'ts_delta(close' in expr:
+                family = 'delta-close'
+            elif 'ts_corr(' in expr and 'volume' in expr:
+                family = 'price-volume-corr'
+            elif 'close - open' in expr:
+                family = 'intraday'
+            elif 'ts_mean(close' in expr:
+                family = 'mean-close'
             item = {
                 'alphaId': alpha_id,
                 'sharpe': sharpe if sharpe is not None else sharpe_s,
                 'fitness': fitness if fitness is not None else fitness_s,
-                'expr': current_expr or ''
+                'expr': expr,
+                'family': family
             }
             recent = status.get('recent', [])
             recent.insert(0, item)
             status['recent'] = recent[:20]
             status['totals']['tested'] = int(status.get('totals', {}).get('tested', 0)) + 1
+            fams = status.setdefault('families', {})
+            fams[item['family']] = int(fams.get(item['family'], 0)) + 1
+            if sharpe is not None and fitness is not None and sharpe >= 1.25 and fitness >= 1.0:
+                status['totals']['qualified'] = int(status.get('totals', {}).get('qualified', 0)) + 1
             best = status.get('best')
             score = (-1e9 if sharpe is None else sharpe) + (-1e9 if fitness is None else fitness)
             best_score = -1e18
