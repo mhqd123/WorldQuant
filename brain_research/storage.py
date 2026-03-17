@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable
 
 
 class JsonlStore:
@@ -23,6 +23,20 @@ class JsonlStore:
                     continue
                 rows.append(json.loads(line))
         return rows
+
+    def replace_all(self, rows: List[Dict[str, Any]]):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as f:
+            for row in rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    def update_rows(self, predicate: Callable[[Dict[str, Any]], bool], updater: Callable[[Dict[str, Any]], Dict[str, Any]]):
+        rows = self.load_all()
+        updated = []
+        for row in rows:
+            updated.append(updater(row) if predicate(row) else row)
+        self.replace_all(updated)
+        return updated
 
 
 class JsonStore:

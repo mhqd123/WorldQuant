@@ -13,17 +13,18 @@ class ImproveConsumer:
         queued = [x for x in items if x.get('status') == 'queued_improve']
         produced = []
         for item in queued[:limit]:
-            new_expr = self.improvement_service.mutate_expression(item['expression'], item['mutation_type'])
-            out = {
-                'parent_alpha_id': item.get('parent_alpha_id'),
-                'family_id': item.get('family_id'),
-                'generation': item.get('generation', 1),
-                'mutation_type': item.get('mutation_type'),
-                'expression': new_expr,
-                'status': 'pending_sim',
-                'source': 'improve_consumer',
-            }
-            self.candidate_store.append(out)
-            produced.append(out)
-            item['status'] = 'consumed'
+            generated = self.improvement_service.generate_mutation_candidates(item, [item.get('reason', '')], max_children=1)
+            for out in generated:
+                out.update({
+                    'status': 'pending_sim',
+                    'source': 'improve_consumer',
+                    'source_bucket': 'improve',
+                })
+                self.candidate_store.append(out)
+                produced.append(out)
+        consumed_keys = {(x.get('parent_alpha_id'), x.get('mutation_type'), x.get('expression')) for x in queued[:limit]}
+        self.queue_store.update_rows(
+            lambda row: (row.get('parent_alpha_id'), row.get('mutation_type'), row.get('expression')) in consumed_keys,
+            lambda row: {**row, 'status': 'consumed'}
+        )
         return produced

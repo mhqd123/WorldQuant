@@ -39,6 +39,8 @@ class ResultIngestionOrchestrator:
             diagnosis_labels=labels,
             decision=decision,
             notes=[f'source:{source}'],
+            source_bucket=candidate.source_bucket,
+            priority_score=candidate.priority_score,
         )
         self.candidate_store.append(candidate.to_dict())
         self.result_store.append(result.to_dict())
@@ -49,6 +51,9 @@ class ResultIngestionOrchestrator:
             'decision': decision,
             'diagnosis_labels': labels,
             'family_id': candidate.family_id,
+            'theme': candidate.tags[0] if candidate.tags else 'generic',
+            'source_bucket': candidate.source_bucket,
+            'priority_score': candidate.priority_score,
             'ts': raw_result.get('ts'),
         })
         improve_items = []

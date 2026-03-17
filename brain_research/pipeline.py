@@ -1,6 +1,7 @@
 from .models import SimulationResult, AlphaLineage
 from .diagnoser import diagnose_result
 from .mutator import propose_mutations
+from .scheduler import schedule_next_jobs, priority_score
 
 
 def cheap_filter_score(candidate):
@@ -27,16 +28,28 @@ def research_cycle(
     expand_hypothesis_to_family,
     run_simulations,
     mutate_candidate,
+    family_stats=None,
 ):
+    family_stats = family_stats or {}
     candidates = []
     for hyp in hypotheses:
         family_candidates = expand_hypothesis_to_family(hyp)
         for candidate in family_candidates:
             candidate.prior_score = cheap_filter_score(candidate)
+            candidate.priority_score = priority_score(candidate.to_dict(), family_stats)
+            candidate.source_bucket = 'explore'
         candidates.extend(family_candidates)
 
     candidates = [c for c in candidates if c.prior_score >= 0.35]
-    sim_queue = sorted(candidates, key=lambda x: x.prior_score, reverse=True)[:total_budget]
+    queue_state = {
+        'explore': [c.to_dict() for c in candidates],
+        'exploit': [],
+        'improve': [],
+        'retry': [],
+    }
+    scheduled = schedule_next_jobs(queue_state=queue_state, active_jobs=[], family_stats=family_stats, max_concurrency=min(5, total_budget))
+    chosen_ids = {x.get('alpha_id') for x in scheduled}
+    sim_queue = [c for c in candidates if c.alpha_id in chosen_ids]
     results = run_simulations(sim_queue)
 
     for candidate, metrics in results:
@@ -55,6 +68,8 @@ def research_cycle(
             too_correlated=("too_correlated" in labels),
             diagnosis_labels=labels,
             decision=decision,
+            source_bucket=candidate.source_bucket,
+            priority_score=candidate.priority_score,
         )
         result_store.append(result.to_dict())
 
@@ -70,5 +85,5 @@ def research_cycle(
         if decision == "improve_pool":
             actions = propose_mutations(labels)
             mutated = mutate_candidate(candidate, actions)
-            for m in mutated:
+            for m in mutated[:3]:
                 candidate_store.append(m.to_dict())

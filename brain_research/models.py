@@ -75,6 +75,12 @@ class AlphaCandidate:
     lineage_depth: int = 0
     status: str = CandidateStatus.PENDING_SIM.value
     tags: List[str] = field(default_factory=list)
+    source_bucket: str = "explore"
+    priority_score: float = 0.0
+    mutation_expected_gain: float = 0.0
+    family_freeze_until: Optional[str] = None
+    branch_stop_reason: Optional[str] = None
+    same_diagnosis_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -108,6 +114,8 @@ class SimulationResult:
     diagnosis_labels: List[str]
     decision: str = Decision.REJECT_POOL.value
     notes: List[str] = field(default_factory=list)
+    source_bucket: str = "explore"
+    priority_score: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -121,6 +129,7 @@ class AlphaLineage:
     alpha_id: str
     ancestor_chain: List[str]
     mutations: List[str]
+    branch_stop_reason: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -135,6 +144,9 @@ class FamilyStats:
     avg_mutation_gain: float = 0.0
     recent_success_rate: float = 0.0
     budget_weight: float = 1.0
+    family_freeze_until: Optional[str] = None
+    freeze_reason: Optional[str] = None
+    branch_stop_reason: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -148,6 +160,7 @@ class MutationRecord:
     reason: str
     actions: List[str]
     expected_effect: Dict[str, str]
+    mutation_expected_gain: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
