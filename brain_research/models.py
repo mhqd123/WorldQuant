@@ -62,6 +62,8 @@ class AlphaCandidate:
     alpha_id: str
     hypothesis_id: str
     family_id: str
+    theme: str
+    subtheme: str
     parent_alpha_id: Optional[str]
     generation: int
     expression: str

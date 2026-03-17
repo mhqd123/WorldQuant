@@ -12,6 +12,7 @@ class ImprovementService:
             item.update({
                 'status': 'queued_improve',
                 'rank': i,
+                'source_bucket': 'improve',
             })
             queue_items.append(item)
         for item in queue_items:

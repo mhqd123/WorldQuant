@@ -128,6 +128,8 @@ def build_candidate(expression: str, raw_result: Dict[str, Any], parent_alpha_id
         alpha_id=alpha_id,
         hypothesis_id=_id('hyp', hypo['theme'] + '::' + hypo['subtheme']),
         family_id=family_id,
+        theme=hypo['theme'],
+        subtheme=hypo['subtheme'],
         parent_alpha_id=parent_alpha_id,
         generation=0 if not parent_alpha_id else int(raw_result.get('generation', 0) or 0) + 1,
         expression=expression,
