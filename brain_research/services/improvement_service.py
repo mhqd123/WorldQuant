@@ -1,23 +1,57 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
 from brain_research.mutator import propose_mutations
+
+TRACE_FILE = Path('/root/.openclaw/workspace/brain_research_data/improve_generation_trace.jsonl')
+
+
+def utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def trace(stage: str, alpha_id: str | None, diagnosis_labels: list[str] | None, status: str, actions=None, notes: str = ''):
+    TRACE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with TRACE_FILE.open('a', encoding='utf-8') as f:
+        f.write(json.dumps({
+            'timestamp': utc_now_iso(),
+            'alpha_id': alpha_id,
+            'stage': stage,
+            'status': status,
+            'diagnosis_labels': diagnosis_labels or [],
+            'actions': actions or [],
+            'notes': notes,
+        }, ensure_ascii=False) + '\n')
 
 
 class ImprovementService:
     def enqueue_mutations_for_improve(self, candidate, diagnosis_labels, candidate_store):
+        alpha_id = getattr(candidate, 'alpha_id', None) if hasattr(candidate, 'alpha_id') else candidate.get('alpha_id')
+        trace('improve_decision_seen', alpha_id, diagnosis_labels, 'start')
         actions = propose_mutations(diagnosis_labels)
+        trace('actions_proposed', alpha_id, diagnosis_labels, 'ok', actions=actions)
         generated = self.generate_mutation_candidates(candidate.to_dict() if hasattr(candidate, 'to_dict') else candidate, diagnosis_labels, max_children=3)
+        trace('enqueue_called', alpha_id, diagnosis_labels, 'ok', actions=[g.get('mutation_type') for g in generated])
         queue_items = []
         for i, item in enumerate(generated[:3], start=1):
             item.update({
                 'status': 'queued_improve',
                 'rank': i,
                 'source_bucket': 'improve',
+                'ts': utc_now_iso(),
             })
             queue_items.append(item)
         for item in queue_items:
             candidate_store.append(item)
-        return queue_items or [{'parent_alpha_id': getattr(candidate, 'alpha_id', None), 'actions': actions, 'status': 'queued_improve'}]
+            trace('queued_improve_persisted', item.get('parent_alpha_id'), diagnosis_labels, 'ok', actions=[item.get('mutation_type')])
+        if queue_items:
+            trace('mutation_generated', alpha_id, diagnosis_labels, 'ok', actions=[q.get('mutation_type') for q in queue_items])
+            return queue_items
+        trace('mutation_generated', alpha_id, diagnosis_labels, 'empty', actions=actions, notes='no mutation candidates generated')
+        return [{'parent_alpha_id': alpha_id, 'actions': actions, 'status': 'queued_improve', 'ts': utc_now_iso()}]
 
     def identify_backbone(self, expression: str) -> str:
         e = expression.lower()
@@ -119,7 +153,7 @@ class ImprovementService:
         generation = int(candidate.get('generation', 0))
         if generation > 2:
             return []
-        if len(set(diagnosis_labels)) == 1 and candidate.get('same_diagnosis_count', 0) >= 2:
+        if int(candidate.get('same_diagnosis_count', 0)) >= 2:
             return []
         actions = propose_mutations(diagnosis_labels)
         expanded = []
