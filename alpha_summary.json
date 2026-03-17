@@ -1,0 +1,472 @@
+{
+  "runs": [
+    {
+      "ts": "2026-03-16T02:40:26.173407Z",
+      "tested": 6,
+      "simulated": 6,
+      "qualified": 0,
+      "families": {
+        "mean-close,returns-vol,volume-confirm,grouped": {
+          "count": 3,
+          "qualified": 0
+        },
+        "mean-close,range-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        },
+        "delta-close,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        },
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T03:10:40.811883Z",
+      "tested": 3,
+      "simulated": 3,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 2,
+          "qualified": 0
+        },
+        "range-vol,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T03:17:22.620778Z",
+      "tested": 3,
+      "simulated": 3,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 2,
+          "qualified": 0
+        },
+        "range-vol,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T03:40:02.744405Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "range-vol,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T04:40:54.356036Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "range-vol,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T05:38:07.562336Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "range-vol,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T07:39:01.436903Z",
+      "tested": 4,
+      "simulated": 4,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 3,
+          "qualified": 0
+        },
+        "range-vol,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T08:38:15.257240Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T09:38:34.846326Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T10:38:38.916234Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T11:40:33.116335Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T12:38:05.830378Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T13:38:34.519767Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T14:38:49.901205Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T15:37:58.142124Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "range-vol,grouped": {
+          "count": 5,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T16:06:39.953593Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 2,
+          "qualified": 0
+        },
+        "range-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        },
+        "delta-close,price-volume-corr,returns-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        },
+        "mean-close,returns-vol,volume-confirm,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T16:37:57.995521Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T17:38:41.163715Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T18:40:14.398145Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T19:38:56.047656Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T20:38:40.429529Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T21:39:30.492917Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T22:38:33.460157Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-16T23:38:43.269816Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-17T00:39:15.721030Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-17T01:41:09.525273Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-17T02:39:49.307872Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-17T03:40:51.514729Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    },
+    {
+      "ts": "2026-03-17T04:38:19.366918Z",
+      "tested": 5,
+      "simulated": 5,
+      "qualified": 0,
+      "families": {
+        "intraday,range-vol,volume-confirm,grouped": {
+          "count": 4,
+          "qualified": 0
+        },
+        "intraday,range-vol,grouped": {
+          "count": 1,
+          "qualified": 0
+        }
+      }
+    }
+  ],
+  "lastRun": {
+    "ts": "2026-03-17T04:38:19.366918Z",
+    "tested": 5,
+    "simulated": 5,
+    "qualified": 0,
+    "families": {
+      "intraday,range-vol,volume-confirm,grouped": {
+        "count": 4,
+        "qualified": 0
+      },
+      "intraday,range-vol,grouped": {
+        "count": 1,
+        "qualified": 0
+      }
+    }
+  }
+}

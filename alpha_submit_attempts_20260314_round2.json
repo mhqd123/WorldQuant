@@ -1,0 +1,34 @@
+[
+  {
+    "alpha_id": "xAQPN12w",
+    "submit_http": 403,
+    "body": "{\"is\":{\"checks\":[{\"name\":\"LOW_SHARPE\",\"result\":\"PASS\",\"limit\":1.25,\"value\":2.24},{\"name\":\"LOW_FITNESS\",\"result\":\"PASS\",\"limit\":1.0,\"value\":1.61},{\"name\":\"LOW_TURNOVER\",\"result\":\"PASS\",\"limit\":0.01,\"value\":0.2697},{\"name\":\"HIGH_TURNOVER\",\"result\":\"PASS\",\"limit\":0.7,\"value\":0.2697},{\"name\":\"CONCENTRATED_WEIGHT\",\"result\":\"PASS\"},{\"name\":\"LOW_SUB_UNIVERSE_SHARPE\",\"result\":\"PASS\",\"limit\":0.97,\"value\":1.58},{\"name\":\"SELF_CORRELATION\",\"result\":\"FAIL\",\"limit\":0.7,\"value\":0.9984},{\"name\":\"MATCHES_COMPETITION\",\"result\":\"PASS\",\"competitions\":[{\"id\":\"challenge\",\"name\":\"Challenge\"}]}],\"selfCorrelated\":{\"schema\":{\"name\":\"selfCorrelation\",\"title\":\"Self Correlated\",\"properties\":[{\"name\":\"id\",\"title\":\"Id\",\"type\":\"string\"},{\"name\":\"name\",\"title\":\"Name\",\"type\":\"string\"},{\"name\":\"instrumentType\",\"title\":\"Inst",
+    "status": "UNSUBMITTED",
+    "dateSubmitted": null,
+    "selfCorrelation": "PENDING"
+  },
+  {
+    "alpha_id": "e7Kd3PGz",
+    "submit_http": 403,
+    "body": "{\"is\":{\"checks\":[{\"name\":\"LOW_SHARPE\",\"result\":\"PASS\",\"limit\":1.25,\"value\":2.24},{\"name\":\"LOW_FITNESS\",\"result\":\"PASS\",\"limit\":1.0,\"value\":1.61},{\"name\":\"LOW_TURNOVER\",\"result\":\"PASS\",\"limit\":0.01,\"value\":0.2697},{\"name\":\"HIGH_TURNOVER\",\"result\":\"PASS\",\"limit\":0.7,\"value\":0.2697},{\"name\":\"CONCENTRATED_WEIGHT\",\"result\":\"PASS\"},{\"name\":\"LOW_SUB_UNIVERSE_SHARPE\",\"result\":\"PASS\",\"limit\":0.97,\"value\":1.59},{\"name\":\"SELF_CORRELATION\",\"result\":\"FAIL\",\"limit\":0.7,\"value\":0.9984},{\"name\":\"MATCHES_COMPETITION\",\"result\":\"PASS\",\"competitions\":[{\"id\":\"challenge\",\"name\":\"Challenge\"}]}],\"selfCorrelated\":{\"schema\":{\"name\":\"selfCorrelation\",\"title\":\"Self Correlated\",\"properties\":[{\"name\":\"id\",\"title\":\"Id\",\"type\":\"string\"},{\"name\":\"name\",\"title\":\"Name\",\"type\":\"string\"},{\"name\":\"instrumentType\",\"title\":\"Inst",
+    "status": "UNSUBMITTED",
+    "dateSubmitted": null,
+    "selfCorrelation": "PENDING"
+  },
+  {
+    "alpha_id": "pwE1x16V",
+    "submit_http": 403,
+    "body": "{\"is\":{\"checks\":[{\"name\":\"LOW_SHARPE\",\"result\":\"PASS\",\"limit\":1.25,\"value\":2.23},{\"name\":\"LOW_FITNESS\",\"result\":\"PASS\",\"limit\":1.0,\"value\":1.61},{\"name\":\"LOW_TURNOVER\",\"result\":\"PASS\",\"limit\":0.01,\"value\":0.2657},{\"name\":\"HIGH_TURNOVER\",\"result\":\"PASS\",\"limit\":0.7,\"value\":0.2657},{\"name\":\"CONCENTRATED_WEIGHT\",\"result\":\"PASS\"},{\"name\":\"LOW_SUB_UNIVERSE_SHARPE\",\"result\":\"PASS\",\"limit\":0.97,\"value\":1.57},{\"name\":\"SELF_CORRELATION\",\"result\":\"FAIL\",\"limit\":0.7,\"value\":1.0},{\"name\":\"MATCHES_COMPETITION\",\"result\":\"PASS\",\"competitions\":[{\"id\":\"challenge\",\"name\":\"Challenge\"}]}],\"selfCorrelated\":{\"schema\":{\"name\":\"selfCorrelation\",\"title\":\"Self Correlated\",\"properties\":[{\"name\":\"id\",\"title\":\"Id\",\"type\":\"string\"},{\"name\":\"name\",\"title\":\"Name\",\"type\":\"string\"},{\"name\":\"instrumentType\",\"title\":\"Instrum",
+    "status": "UNSUBMITTED",
+    "dateSubmitted": null,
+    "selfCorrelation": "PENDING"
+  },
+  {
+    "alpha_id": "5896dYRX",
+    "submit_http": 403,
+    "body": "{\"is\":{\"checks\":[{\"name\":\"LOW_SHARPE\",\"result\":\"PASS\",\"limit\":1.25,\"value\":2.22},{\"name\":\"LOW_FITNESS\",\"result\":\"PASS\",\"limit\":1.0,\"value\":1.59},{\"name\":\"LOW_TURNOVER\",\"result\":\"PASS\",\"limit\":0.01,\"value\":0.2524},{\"name\":\"HIGH_TURNOVER\",\"result\":\"PASS\",\"limit\":0.7,\"value\":0.2524},{\"name\":\"CONCENTRATED_WEIGHT\",\"result\":\"PASS\"},{\"name\":\"LOW_SUB_UNIVERSE_SHARPE\",\"result\":\"PASS\",\"limit\":0.96,\"value\":1.66},{\"name\":\"SELF_CORRELATION\",\"result\":\"FAIL\",\"limit\":0.7,\"value\":0.9576},{\"name\":\"MATCHES_COMPETITION\",\"result\":\"PASS\",\"competitions\":[{\"id\":\"challenge\",\"name\":\"Challenge\"}]}],\"selfCorrelated\":{\"schema\":{\"name\":\"selfCorrelation\",\"title\":\"Self Correlated\",\"properties\":[{\"name\":\"id\",\"title\":\"Id\",\"type\":\"string\"},{\"name\":\"name\",\"title\":\"Name\",\"type\":\"string\"},{\"name\":\"instrumentType\",\"title\":\"Inst",
+    "status": "UNSUBMITTED",
+    "dateSubmitted": null,
+    "selfCorrelation": "PENDING"
+  }
+]
