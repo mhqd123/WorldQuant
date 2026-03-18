@@ -114,11 +114,7 @@ class BrainAPI:
         self._ensure_auth()
         merged = dict(DEFAULT_SETTINGS)
         if settings:
-            for k, v in settings.items():
-                if k in ("region", "universe"):
-                    merged[k] = v
-                else:
-                    merged[k] = v
+            merged.update(settings)
 
         payload = {
             "type": "REGULAR",
