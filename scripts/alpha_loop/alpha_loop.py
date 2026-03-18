@@ -23,6 +23,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from brain_api import BrainAPI, utc_now_iso, _safe_float
 from alpha_strategies import generate_batch
+from fingerprint import FingerprintDB
 
 SHARPE_SUBMIT = 1.25
 FITNESS_SUBMIT = 1.0
@@ -256,8 +257,13 @@ def diagnose(m):
     return "reject", labels
 
 
-def sim_one(api, expr, settings, ledger, tag="", extra=None):
+def sim_one(api, expr, settings, ledger, tag="", extra=None, fpdb=None):
     """仿真一个表达式，记录结果，返回 (metrics, decision, labels)"""
+    if fpdb and fpdb.should_skip(expr, threshold=0.80):
+        nov = fpdb.novelty_score(expr)
+        print(f"    [跳过] 结构相似度过高 (新颖度:{nov:.2f})")
+        ledger.log({"event": "skip_similar", "expr": expr[:50], "novelty": nov, "tag": tag})
+        raise ValueError("too_similar")
     try:
         alpha_data = api.simulate_and_wait(expr, settings=settings, timeout=300)
         metrics = BrainAPI.extract_metrics(alpha_data)
@@ -322,9 +328,9 @@ def phase_scan(api, ledger):
     return pool, fields
 
 
-def phase_mother(api, ledger, mothers, max_per_mother=4):
+def phase_mother(api, ledger, mothers, max_per_mother=4, fpdb=None):
     """Phase 1: 母因子迭代"""
-    stats = {"tried": 0, "submitted": 0}
+    stats = {"tried": 0, "submitted": 0, "skipped": 0}
     tried = ledger.tried_hashes()
 
     for mother in mothers[:2]:
@@ -342,7 +348,7 @@ def phase_mother(api, ledger, mothers, max_per_mother=4):
             print(f"  [{desc}] {m_expr[:60]}...")
             try:
                 metrics, decision, labels = sim_one(api, m_expr, m_settings, ledger, tag=f"mother:{desc}",
-                                                      extra={"mother_id": mother.get("alpha_id")})
+                                                      extra={"mother_id": mother.get("alpha_id")}, fpdb=fpdb)
                 stats["tried"] += 1
                 s, sc = metrics["sharpe"], metrics["self_correlation"]
                 if decision == "submit":
@@ -351,6 +357,8 @@ def phase_mother(api, ledger, mothers, max_per_mother=4):
                     stats["submitted"] += 1
                 else:
                     print(f"    Sharpe:{s:.2f} 自相关:{sc:.4f} → {decision} {labels}")
+            except ValueError:
+                stats["skipped"] += 1
             except Exception:
                 pass
             time.sleep(SIM_INTERVAL)
@@ -399,7 +407,7 @@ def phase_grid_search(api, ledger, max_candidates=2):
     return stats
 
 
-def phase_llm(api, ledger, pool, fields, count=5):
+def phase_llm(api, ledger, pool, fields, count=5, fpdb=None):
     """Phase 3: LLM 驱动生成"""
     print(f"\n[Phase 3] LLM 生成 {count} 个新表达式...")
     prompt = build_llm_prompt(ledger, fields, pool, count=count)
@@ -417,7 +425,7 @@ def phase_llm(api, ledger, pool, fields, count=5):
             continue
         print(f"  [{family}] {expr[:60]}...")
         try:
-            metrics, decision, labels = sim_one(api, expr, settings, ledger, tag=f"llm:{family}")
+            metrics, decision, labels = sim_one(api, expr, settings, ledger, tag=f"llm:{family}", fpdb=fpdb)
             stats["llm_tried"] += 1
             if decision == "submit":
                 print(f"    [合格!] Sharpe:{metrics['sharpe']:.2f}")
@@ -432,7 +440,7 @@ def phase_llm(api, ledger, pool, fields, count=5):
     return stats
 
 
-def phase_explore(api, ledger, batch_size=3):
+def phase_explore(api, ledger, batch_size=3, fpdb=None):
     """Phase 4: 模板探索 fallback"""
     print(f"\n[Phase 4] 模板探索...")
     batch = generate_batch(batch_size=batch_size, submitted_exprs=ledger.submitted_exprs())
@@ -441,7 +449,7 @@ def phase_explore(api, ledger, batch_size=3):
     for expr, family, settings in batch:
         print(f"  [{family}] {expr[:60]}...")
         try:
-            metrics, decision, labels = sim_one(api, expr, settings, ledger, tag=f"explore:{family}")
+            metrics, decision, labels = sim_one(api, expr, settings, ledger, tag=f"explore:{family}", fpdb=fpdb)
             stats["explored"] += 1
             if decision == "submit":
                 print(f"    [合格!]")
@@ -498,6 +506,7 @@ def phase_multiregion(api, ledger, max_candidates=2):
 
 def run_cycle(api, ledger, batch_size, cycle_num):
     cs = {"cycle": cycle_num, "start": utc_now_iso()}
+    fpdb = FingerprintDB(ledger.ws)
 
     if cycle_num % 5 == 1:
         pool, fields = phase_scan(api, ledger)
@@ -507,14 +516,14 @@ def run_cycle(api, ledger, batch_size, cycle_num):
 
     mothers = api.find_mother_candidates(pool, top_n=3) if pool.get("total") else []
     if mothers:
-        cs["mother"] = phase_mother(api, ledger, mothers, max_per_mother=batch_size)
+        cs["mother"] = phase_mother(api, ledger, mothers, max_per_mother=batch_size, fpdb=fpdb)
 
     cs["grid"] = phase_grid_search(api, ledger, max_candidates=2)
 
     if cycle_num % 3 == 0:
-        cs["llm"] = phase_llm(api, ledger, pool, fields, count=5)
+        cs["llm"] = phase_llm(api, ledger, pool, fields, count=5, fpdb=fpdb)
 
-    cs["explore"] = phase_explore(api, ledger, batch_size=max(2, batch_size - 2))
+    cs["explore"] = phase_explore(api, ledger, batch_size=max(2, batch_size - 2), fpdb=fpdb)
 
     if cycle_num % 4 == 0:
         cs["multiregion"] = phase_multiregion(api, ledger, max_candidates=1)
