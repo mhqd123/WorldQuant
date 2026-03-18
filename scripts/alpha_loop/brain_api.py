@@ -229,6 +229,24 @@ class BrainAPI:
             "self_corr_value": _safe_float(self_corr_value),
         }
 
+    def poll_submission(self, alpha_id: str, timeout: int = 120, interval: int = 10) -> dict:
+        """提交后持续轮询直到 SELF_CORRELATION 不再 PENDING"""
+        start = time.time()
+        while time.time() - start < timeout:
+            status = self.check_submission_status(alpha_id)
+            if status["self_corr_result"] and status["self_corr_result"] != "PENDING":
+                return status
+            if status["status"] == "ACTIVE":
+                return status
+            time.sleep(interval)
+        return self.check_submission_status(alpha_id)
+
+    def submit_and_track(self, alpha_id: str) -> dict:
+        """提交 + 轮询完整生命周期"""
+        submit_result = self.submit_alpha(alpha_id)
+        time.sleep(5)
+        return self.poll_submission(alpha_id, timeout=120)
+
     # ── 平台分析 ──────────────────────────────────────────
 
     def get_data_fields(self) -> list:

@@ -1,25 +1,20 @@
 #!/usr/bin/env python3
 """
-Alpha 7x24 自动闭环 - 母因子迭代策略。
+Alpha 7x24 自动闭环 v3 — 母因子迭代 + LLM 生成 + 网格搜索 + 多区域。
 
-核心逻辑：
-  1. 启动时扫描平台 alpha 池，找出母因子候选
-  2. 对母因子做结构性变异（换骨干、改分组、加条件）
-  3. 逐个仿真，跟踪自相关变化
-  4. 自相关 < 0.7 且指标合格 → 提交
-  5. 提交成功 → 冻结该 family，转向下一个母因子
-  6. 模板冷启动：无母因子时用策略模板探索
+执行策略（按优先级）：
+  Phase 0: 扫描平台 → 缓存数据字段 → 分析 alpha 池
+  Phase 1: 母因子迭代（结构性变异降自相关）
+  Phase 2: Settings 网格搜索（对有潜力的跑不同 decay/neutralization）
+  Phase 3: LLM 生成（用 GPT 推理新方向）
+  Phase 4: 模板探索（冷启动 fallback）
+  Phase 5: 多区域尝试（把有潜力的表达式放到其他区域跑）
+  提交后轮询状态直到 PENDING 消失。
 
 用法:
   python alpha_loop.py [--workspace /path] [--batch-size 5] [--interval 90]
 """
-import argparse
-import json
-import os
-import sys
-import time
-import traceback
-import hashlib
+import argparse, json, os, sys, time, traceback, hashlib, subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,20 +22,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from brain_api import BrainAPI, utc_now_iso, _safe_float
-from alpha_strategies import generate_batch, get_strategy_stats
-
-# ── 常量 ───────────────────────────────────────────────────
+from alpha_strategies import generate_batch
 
 SHARPE_SUBMIT = 1.25
 FITNESS_SUBMIT = 1.0
-TURNOVER_MAX = 0.70
-DRAWDOWN_MAX = 0.10
 SELF_CORR_MAX = 0.70
-
 SIM_INTERVAL = 10
-CYCLE_INTERVAL = 90
-MAX_CONSECUTIVE_ERRORS = 5
-
 
 # ── 变异器 ────────────────────────────────────────────────
 
@@ -53,444 +40,529 @@ BACKBONE_SWAPS = [
     ("(close / ts_mean(close, 10) - 1)", "(close / ts_mean(close, 20) - 1)"),
     ("(close / ts_mean(close, 15) - 1)", "ts_delta(close, 10) / close"),
 ]
-
-GROUPING_SWAPS = [
-    ("subindustry", "industry"),
-    ("industry", "sector"),
-    ("sector", "subindustry"),
-]
-
+GROUPING_SWAPS = [("subindustry", "industry"), ("industry", "sector"), ("sector", "subindustry")]
 VOLUME_SWAPS = [
     ("volume / ts_mean(volume, 20)", "ts_mean(volume, 5) / ts_mean(volume, 40)"),
     ("volume / ts_mean(volume, 41)", "volume / ts_mean(volume, 20)"),
-    ("ts_mean(volume, 5) / ts_mean(volume, 40)", "volume / ts_mean(volume, 60)"),
+]
+MUTATION_TYPES = ["swap_backbone", "add_trade_when", "swap_grouping", "add_group_rank", "swap_volume", "change_decay"]
+
+SETTINGS_GRID = [
+    {"decay": 4, "neutralization": "SUBINDUSTRY", "truncation": 0.06},
+    {"decay": 6, "neutralization": "SUBINDUSTRY", "truncation": 0.08},
+    {"decay": 8, "neutralization": "INDUSTRY", "truncation": 0.08},
+    {"decay": 10, "neutralization": "SECTOR", "truncation": 0.10},
+    {"decay": 12, "neutralization": "SUBINDUSTRY", "truncation": 0.05},
 ]
 
-DECAY_OPTIONS = [3, 4, 5, 6, 8, 10, 12]
-NEUTRALIZATION_OPTIONS = ["SUBINDUSTRY", "INDUSTRY", "SECTOR"]
+REGIONS = [
+    {"region": "USA", "universe": "TOP3000"},
+    {"region": "CHN", "universe": "TOP2000"},
+    {"region": "EUR", "universe": "TOP1200"},
+    {"region": "ASI", "universe": "TOP1200"},
+]
 
 
-def mutate_expression(expr: str, mutation_type: str) -> list:
-    """对表达式做结构性变异，返回变异列表 [(expr, mutation_desc, settings_override)]"""
+def _expr_hash(expr: str) -> str:
+    return hashlib.sha256(expr.strip().lower().encode()).hexdigest()[:16]
+
+
+def mutate_expression(expr, tried):
     results = []
-
-    if mutation_type == "swap_backbone":
-        for old, new in BACKBONE_SWAPS:
-            if old in expr:
-                mutated = expr.replace(old, new, 1)
-                if mutated != expr:
-                    results.append((mutated, f"backbone:{old}->{new}", {}))
-
-    elif mutation_type == "swap_grouping":
-        for old, new in GROUPING_SWAPS:
-            if old in expr.lower():
-                mutated = expr.replace(old, new).replace(old.capitalize(), new.capitalize())
-                if mutated != expr:
-                    results.append((mutated, f"grouping:{old}->{new}", {"neutralization": new.upper()}))
-
-    elif mutation_type == "swap_volume":
-        for old, new in VOLUME_SWAPS:
-            if old in expr:
-                mutated = expr.replace(old, new, 1)
-                if mutated != expr:
-                    results.append((mutated, f"volume:{old[:20]}->{new[:20]}", {}))
-
-    elif mutation_type == "add_trade_when":
-        conditions = [
-            "volume > ts_mean(volume, 20)",
-            "volume > 1.5 * ts_mean(volume, 20)",
-            "ts_std_dev(returns, 5) > ts_std_dev(returns, 20)",
-        ]
-        for cond in conditions:
-            if "trade_when" not in expr:
-                mutated = f"trade_when({expr}, {cond})"
-                results.append((mutated, f"trade_when:{cond[:30]}", {}))
-
-    elif mutation_type == "change_decay":
-        for d in DECAY_OPTIONS:
-            results.append((expr, f"decay:{d}", {"decay": d}))
-
-    elif mutation_type == "change_neutralization":
-        for n in NEUTRALIZATION_OPTIONS:
-            results.append((expr, f"neutralization:{n}", {"neutralization": n}))
-
-    elif mutation_type == "add_group_rank":
-        for group in ["subindustry", "industry"]:
-            if "group_rank" not in expr:
-                mutated = f"group_rank({group}, {expr})"
-                results.append((mutated, f"group_rank:{group}", {"neutralization": group.upper()}))
-
+    for old, new in BACKBONE_SWAPS:
+        if old in expr:
+            m = expr.replace(old, new, 1)
+            if m != expr and _expr_hash(m) not in tried:
+                results.append((m, f"backbone:{old[:20]}->{new[:20]}", {}))
+    for old, new in GROUPING_SWAPS:
+        if old in expr.lower():
+            m = expr.replace(old, new).replace(old.capitalize(), new.capitalize())
+            if m != expr and _expr_hash(m) not in tried:
+                results.append((m, f"group:{old}->{new}", {"neutralization": new.upper()}))
+    for old, new in VOLUME_SWAPS:
+        if old in expr:
+            m = expr.replace(old, new, 1)
+            if m != expr and _expr_hash(m) not in tried:
+                results.append((m, f"vol:{old[:15]}->{new[:15]}", {}))
+    if "trade_when" not in expr:
+        for cond in ["volume > ts_mean(volume, 20)", "volume > 1.5 * ts_mean(volume, 20)",
+                      "ts_std_dev(returns, 5) > ts_std_dev(returns, 20)"]:
+            m = f"trade_when({expr}, {cond})"
+            if _expr_hash(m) not in tried:
+                results.append((m, f"tw:{cond[:25]}", {}))
+    if "group_rank" not in expr:
+        for g in ["subindustry", "industry"]:
+            m = f"group_rank({g}, {expr})"
+            if _expr_hash(m) not in tried:
+                results.append((m, f"gr:{g}", {"neutralization": g.upper()}))
     return results
 
 
-MUTATION_PRIORITY = [
-    "swap_backbone",
-    "add_trade_when",
-    "swap_grouping",
-    "add_group_rank",
-    "swap_volume",
-    "change_decay",
-    "change_neutralization",
-]
+# ── LLM 生成 ──────────────────────────────────────────────
+
+LLM_PROMPT_TEMPLATE = """你是 WorldQuant BRAIN 平台的量化因子专家。
+
+## 平台可用数据字段
+{data_fields}
+
+## 可用函数
+ts_mean(x,n) ts_sum(x,n) ts_std_dev(x,n) ts_corr(x,y,n) ts_rank(x,n) ts_delta(x,n) ts_delay(x,n)
+rank(x) scale(x) signed_power(x,p) group_rank(group,x) trade_when(signal,condition)
+
+## 当前 ACTIVE 的 alpha
+{active_alphas}
+
+## 最近 {n_failures} 个失败的主要原因
+{failure_summary}
+
+## 已试过的信号骨干（不要再用）
+{tried_backbones}
+
+## 任务
+生成 {count} 个全新的 Alpha 表达式。要求：
+1. 每个表达式必须有明确的投资假设（一句话说明）
+2. 不要使用上面列出的已试过的信号骨干
+3. 优先使用低拥挤度的数据字段（基本面、非常规价量组合）
+4. 确保表达式语法正确，可直接在 BRAIN 平台运行
+5. 每个表达式结构上要有明显差异
+
+## 输出格式
+严格按以下 JSON 格式输出，不要有其他内容：
+[
+  {{"expr": "表达式", "hypothesis": "投资假设", "family": "family标签"}},
+  ...
+]"""
 
 
-def generate_mutations(expr: str, tried_mutations: set, max_count: int = 5) -> list:
-    """为母因子生成所有可能的变异，去重后按优先级返回"""
-    all_mutations = []
-    for mt in MUTATION_PRIORITY:
-        for mutated_expr, desc, settings in mutate_expression(expr, mt):
-            key = hashlib.sha256(mutated_expr.strip().lower().encode()).hexdigest()[:16]
-            if key not in tried_mutations:
-                all_mutations.append((mutated_expr, desc, settings, mt))
-                if len(all_mutations) >= max_count * 3:
-                    break
-    return all_mutations[:max_count]
+def build_llm_prompt(ledger, data_fields, pool_analysis, count=5):
+    active = pool_analysis.get("active_alphas", [])
+    active_str = "\n".join(f"- {a.get('expression','')[:80]}" for a in active[:3]) or "无"
+
+    submitted = ledger._load_json("alphas_submitted.json", {"submitted": []}).get("submitted", [])
+    recent_failures = [r for r in submitted[-50:] if r.get("decision") in ("reject", "mutate_decorrelate", "mutate_improve")]
+    label_counts = {}
+    for r in recent_failures:
+        for l in r.get("labels", []):
+            label_counts[l] = label_counts.get(l, 0) + 1
+    failure_str = ", ".join(f"{k}:{v}" for k, v in sorted(label_counts.items(), key=lambda x: -x[1])[:6]) or "无数据"
+
+    backbones = set()
+    for r in submitted[-100:]:
+        e = r.get("expr", "").lower()
+        for sig in ["ts_delta(close", "(close - open)", "(close / vwap", "(2 * close - high - low)",
+                     "close / ts_mean(close", "ts_corr(close, volume", "ts_mean(returns"]:
+            if sig in e:
+                backbones.add(sig)
+    backbones_str = ", ".join(sorted(backbones)) or "无"
+
+    field_names = []
+    if isinstance(data_fields, list):
+        for f in data_fields[:50]:
+            name = f.get("name") if isinstance(f, dict) else str(f)
+            if name:
+                field_names.append(name)
+    fields_str = ", ".join(field_names) if field_names else "close, open, high, low, volume, vwap, returns, cap, sales, cashflow_op, operating_income, net_income, debt, assets, book_value, sharesout"
+
+    return LLM_PROMPT_TEMPLATE.format(
+        data_fields=fields_str, active_alphas=active_str,
+        n_failures=len(recent_failures), failure_summary=failure_str,
+        tried_backbones=backbones_str, count=count,
+    )
+
+
+def call_llm(prompt: str) -> list:
+    """通过 openclaw agent 或直接 API 调用 LLM"""
+    try:
+        r = subprocess.run(
+            ["openclaw", "agent", "--agent", "main", "-m", prompt, "--timeout", "120"],
+            capture_output=True, text=True, timeout=180,
+            cwd=os.path.expanduser("~/.openclaw/workspace"),
+        )
+        text = r.stdout or ""
+    except Exception:
+        return []
+
+    start = text.find("[")
+    end = text.rfind("]")
+    if start >= 0 and end > start:
+        try:
+            items = json.loads(text[start:end + 1])
+            return [(it["expr"], it.get("family", "llm_generated"), {}) for it in items if it.get("expr")]
+        except Exception:
+            pass
+    return []
 
 
 # ── 数据管理 ──────────────────────────────────────────────
 
 class Ledger:
-    def __init__(self, workspace: Path):
-        self.ws = workspace
-        self.ws.mkdir(parents=True, exist_ok=True)
-
-    def _path(self, name): return self.ws / name
+    def __init__(self, ws: Path):
+        self.ws = ws
+        ws.mkdir(parents=True, exist_ok=True)
 
     def _load_json(self, name, default=None):
-        p = self._path(name)
+        p = self.ws / name
         if not p.exists(): return default if default is not None else {}
         try: return json.loads(p.read_text(encoding="utf-8"))
         except Exception: return default if default is not None else {}
 
     def _save_json(self, name, data):
-        self._path(name).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        (self.ws / name).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    def _append_jsonl(self, name, record):
-        with self._path(name).open("a", encoding="utf-8") as f:
-            f.write(json.dumps({**record, "ts": utc_now_iso()}, ensure_ascii=False) + "\n")
+    def _append_jsonl(self, name, rec):
+        with (self.ws / name).open("a", encoding="utf-8") as f:
+            f.write(json.dumps({**rec, "ts": utc_now_iso()}, ensure_ascii=False) + "\n")
 
-    def load_submitted_exprs(self) -> set:
+    def tried_hashes(self) -> set:
         data = self._load_json("alphas_submitted.json", {"submitted": []})
-        return {r.get("expr", "").strip() for r in data.get("submitted", []) if r.get("expr")}
+        return {_expr_hash(r["expr"]) for r in data.get("submitted", []) if r.get("expr")}
 
-    def load_tried_hashes(self) -> set:
+    def submitted_exprs(self) -> set:
         data = self._load_json("alphas_submitted.json", {"submitted": []})
-        hashes = set()
-        for r in data.get("submitted", []):
-            e = r.get("expr", "").strip().lower()
-            if e:
-                hashes.add(hashlib.sha256(e.encode()).hexdigest()[:16])
-        return hashes
+        return {r["expr"].strip() for r in data.get("submitted", []) if r.get("expr")}
 
-    def save_result(self, record: dict):
+    def save_result(self, rec):
         data = self._load_json("alphas_submitted.json", {"submitted": []})
-        data.setdefault("submitted", []).append(record)
+        data.setdefault("submitted", []).append(rec)
         self._save_json("alphas_submitted.json", data)
 
-    def save_qualified(self, record: dict):
+    def save_qualified(self, rec):
         data = self._load_json("alphas_qualified.json", {"qualified": []})
-        data.setdefault("qualified", []).append(record)
+        data.setdefault("qualified", []).append(rec)
         self._save_json("alphas_qualified.json", data)
 
-    def log(self, event: dict):
-        self._append_jsonl("alpha_loop_log.jsonl", event)
-
-    def save_stats(self, stats: dict):
-        existing = self._load_json("alpha_loop_stats.json", {})
-        existing.update(stats)
-        existing["updatedAt"] = utc_now_iso()
-        self._save_json("alpha_loop_stats.json", existing)
-
-    def save_pool_analysis(self, analysis: dict):
-        self._save_json("pool_analysis.json", {**analysis, "ts": utc_now_iso()})
-
-    def load_pool_analysis(self) -> dict:
-        return self._load_json("pool_analysis.json", {})
-
-    def save_data_fields(self, fields: list):
-        self._save_json("brain_data_fields.json", {"fields": fields, "ts": utc_now_iso()})
+    def log(self, ev): self._append_jsonl("alpha_loop_log.jsonl", ev)
+    def save_stats(self, s): self._save_json("alpha_loop_stats.json", {**s, "updatedAt": utc_now_iso()})
+    def save_pool(self, a): self._save_json("pool_analysis.json", {**a, "ts": utc_now_iso()})
+    def load_pool(self): return self._load_json("pool_analysis.json", {})
+    def save_fields(self, f): self._save_json("brain_data_fields.json", {"fields": f, "ts": utc_now_iso()})
+    def load_fields(self): return self._load_json("brain_data_fields.json", {}).get("fields", [])
 
 
-# ── 诊断 ──────────────────────────────────────────────────
+# ── 仿真 + 诊断 ──────────────────────────────────────────
 
-def diagnose(m: dict) -> tuple:
+def diagnose(m):
     labels = []
-    if _safe_float(m.get("sharpe")) < SHARPE_SUBMIT: labels.append("low_sharpe")
-    if _safe_float(m.get("fitness")) < FITNESS_SUBMIT: labels.append("low_fitness")
-    if _safe_float(m.get("turnover")) > TURNOVER_MAX: labels.append("high_turnover")
-    if _safe_float(m.get("drawdown")) > DRAWDOWN_MAX: labels.append("high_drawdown")
-    if _safe_float(m.get("self_correlation")) > SELF_CORR_MAX: labels.append("too_correlated")
+    s, f = _safe_float(m.get("sharpe")), _safe_float(m.get("fitness"))
+    sc = _safe_float(m.get("self_correlation"))
+    if s < SHARPE_SUBMIT: labels.append("low_sharpe")
+    if f < FITNESS_SUBMIT: labels.append("low_fitness")
+    if _safe_float(m.get("turnover")) > 0.70: labels.append("high_turnover")
+    if _safe_float(m.get("drawdown")) > 0.10: labels.append("high_drawdown")
+    if sc > SELF_CORR_MAX: labels.append("too_correlated")
     if not labels: return "submit", ["pass"]
-    has_signal = _safe_float(m.get("sharpe")) >= 1.0 and _safe_float(m.get("fitness")) >= 0.8
-    if has_signal and "too_correlated" in labels and len(labels) <= 2:
-        return "mutate_decorrelate", labels
-    if has_signal and "too_correlated" not in labels:
-        return "mutate_improve", labels
+    if s >= 1.0 and f >= 0.8 and "too_correlated" in labels: return "grid_search", labels
+    if s >= 1.0 and f >= 0.8: return "mutate", labels
     return "reject", labels
 
 
-# ── 主循环阶段 ────────────────────────────────────────────
-
-def phase_scan(api: BrainAPI, ledger: Ledger) -> dict:
-    """阶段 0：扫描平台，分析 alpha 池"""
-    print("\n[扫描] 分析平台 alpha 池...")
+def sim_one(api, expr, settings, ledger, tag="", extra=None):
+    """仿真一个表达式，记录结果，返回 (metrics, decision, labels)"""
     try:
-        analysis = api.scan_alpha_pool(limit=500)
-        ledger.save_pool_analysis(analysis)
-        print(f"  总计: {analysis['total']} 个 alpha")
-        print(f"  状态分布: {analysis['by_status']}")
-        print(f"  ACTIVE: {len(analysis.get('active_alphas', []))} 个")
-        print(f"  高分被自相关挡住: {len(analysis.get('high_sharpe_blocked', []))} 个")
-        print(f"  接近合格: {len(analysis.get('near_pass', []))} 个")
+        alpha_data = api.simulate_and_wait(expr, settings=settings, timeout=300)
+        metrics = BrainAPI.extract_metrics(alpha_data)
+        decision, labels = diagnose(metrics)
+        rec = {"expr": expr, "alpha_id": metrics["alpha_id"],
+               "sharpe": metrics["sharpe"], "fitness": metrics["fitness"],
+               "turnover": metrics["turnover"], "drawdown": metrics["drawdown"],
+               "self_correlation": metrics["self_correlation"],
+               "decision": decision, "labels": labels, "settings": settings, "tag": tag}
+        if extra: rec.update(extra)
+        ledger.save_result(rec)
+        ledger.log({"event": "sim", **rec})
+        return metrics, decision, labels
     except Exception as e:
-        print(f"  扫描失败: {e}，使用缓存")
-        analysis = ledger.load_pool_analysis()
+        ledger.log({"event": "sim_error", "expr": expr[:50], "error": str(e), "tag": tag})
+        if "429" in str(e): time.sleep(30)
+        elif "401" in str(e):
+            try: api.authenticate()
+            except Exception: pass
+        raise
 
+
+def try_submit(api, metrics, rec, ledger):
+    """尝试提交并轮询状态"""
+    alpha_id = metrics["alpha_id"]
+    print(f"    [提交] {alpha_id}...")
+    ledger.save_qualified(rec)
+    try:
+        status = api.submit_and_track(alpha_id)
+        print(f"    [状态] {status['status']} 自相关结果:{status['self_corr_result']} 值:{status['self_corr_value']:.4f}")
+        ledger.log({"event": "submit_tracked", **status})
+        return status
+    except Exception as e:
+        print(f"    [提交失败] {e}")
+        ledger.log({"event": "submit_error", "alpha_id": alpha_id, "error": str(e)})
+        return None
+
+
+# ── 各阶段 ────────────────────────────────────────────────
+
+def phase_scan(api, ledger):
+    print("\n[Phase 0] 扫描平台...")
     try:
         fields = api.get_data_fields()
         if fields:
-            ledger.save_data_fields(fields)
-            field_names = [f.get("name") or f for f in fields[:10]] if fields else []
-            print(f"  数据字段示例: {field_names}")
-    except Exception:
-        pass
+            ledger.save_fields(fields)
+            names = [f.get("name") if isinstance(f, dict) else str(f) for f in fields[:15]]
+            print(f"  数据字段: {names}")
+    except Exception as e:
+        print(f"  字段查询失败: {e}")
+        fields = ledger.load_fields()
 
-    return analysis
+    try:
+        pool = api.scan_alpha_pool(limit=300)
+        ledger.save_pool(pool)
+        print(f"  Alpha 池: {pool['total']} 个, 状态: {pool['by_status']}")
+        print(f"  ACTIVE: {len(pool.get('active_alphas', []))}  被自相关挡: {len(pool.get('high_sharpe_blocked', []))}  接近合格: {len(pool.get('near_pass', []))}")
+    except Exception as e:
+        print(f"  池扫描失败: {e}")
+        pool = ledger.load_pool()
+
+    return pool, fields
 
 
-def phase_mother_iterate(api: BrainAPI, ledger: Ledger, mother: dict, max_mutations: int = 5) -> dict:
-    """阶段 1：母因子迭代 — 对一个母因子做结构性变异"""
-    expr = mother.get("expression", "")
-    alpha_id = mother.get("alpha_id", "")
-    reason = mother.get("reason", "")
-    sharpe = mother.get("sharpe", 0)
-    self_corr = mother.get("self_correlation", 0)
+def phase_mother(api, ledger, mothers, max_per_mother=4):
+    """Phase 1: 母因子迭代"""
+    stats = {"tried": 0, "submitted": 0}
+    tried = ledger.tried_hashes()
 
-    print(f"\n[母因子迭代] {alpha_id}")
-    print(f"  Sharpe: {sharpe:.2f}  自相关: {self_corr:.4f}  原因: {reason}")
-    print(f"  表达式: {expr[:80]}...")
+    for mother in mothers[:2]:
+        expr = mother.get("expression", "")
+        if not expr: continue
+        print(f"\n[Phase 1] 母因子 {mother.get('alpha_id','')[:8]} Sharpe:{mother.get('sharpe',0):.2f} 自相关:{mother.get('self_correlation',0):.4f}")
+        print(f"  {expr[:70]}...")
 
-    stats = {"mother_id": alpha_id, "mutations_tried": 0, "improved": 0, "submitted": 0}
-    tried = ledger.load_tried_hashes()
-    mutations = generate_mutations(expr, tried, max_count=max_mutations)
+        mutations = mutate_expression(expr, tried)[:max_per_mother]
+        if not mutations:
+            print("  无可用变异")
+            continue
 
-    if not mutations:
-        print("  无可用变异，跳过")
-        return stats
+        for m_expr, desc, m_settings in mutations:
+            print(f"  [{desc}] {m_expr[:60]}...")
+            try:
+                metrics, decision, labels = sim_one(api, m_expr, m_settings, ledger, tag=f"mother:{desc}",
+                                                      extra={"mother_id": mother.get("alpha_id")})
+                stats["tried"] += 1
+                s, sc = metrics["sharpe"], metrics["self_correlation"]
+                if decision == "submit":
+                    print(f"    [合格!] Sharpe:{s:.2f} 自相关:{sc:.4f}")
+                    try_submit(api, metrics, {"expr": m_expr, **metrics}, ledger)
+                    stats["submitted"] += 1
+                else:
+                    print(f"    Sharpe:{s:.2f} 自相关:{sc:.4f} → {decision} {labels}")
+            except Exception:
+                pass
+            time.sleep(SIM_INTERVAL)
 
-    print(f"  生成 {len(mutations)} 个变异")
+    return stats
 
-    for i, (mutated_expr, desc, settings, mt) in enumerate(mutations, 1):
-        print(f"\n  [{i}/{len(mutations)}] {desc}")
-        print(f"    {mutated_expr[:70]}...")
 
+def phase_grid_search(api, ledger, max_candidates=2):
+    """Phase 2: 对有潜力但自相关高的表达式做 settings 网格"""
+    data = ledger._load_json("alphas_submitted.json", {"submitted": []})
+    candidates = [r for r in data.get("submitted", [])
+                  if r.get("decision") in ("grid_search", "mutate")
+                  and _safe_float(r.get("sharpe")) >= 1.0
+                  and not r.get("grid_done")]
+    candidates.sort(key=lambda x: _safe_float(x.get("sharpe")), reverse=True)
+
+    if not candidates:
+        return {"grid_tried": 0}
+
+    stats = {"grid_tried": 0, "grid_submitted": 0}
+    print(f"\n[Phase 2] Settings 网格搜索 ({len(candidates[:max_candidates])} 个候选)")
+
+    for cand in candidates[:max_candidates]:
+        expr = cand["expr"]
+        print(f"  表达式: {expr[:60]}... (原 Sharpe:{cand.get('sharpe',0):.2f})")
+
+        best_sharpe = _safe_float(cand.get("sharpe"))
+        for gs in SETTINGS_GRID:
+            if gs == cand.get("settings"): continue
+            print(f"    decay:{gs['decay']} neut:{gs['neutralization']} trunc:{gs['truncation']}")
+            try:
+                metrics, decision, labels = sim_one(api, expr, gs, ledger, tag="grid",
+                                                      extra={"grid_settings": gs})
+                stats["grid_tried"] += 1
+                if decision == "submit":
+                    print(f"      [合格!] Sharpe:{metrics['sharpe']:.2f} 自相关:{metrics['self_correlation']:.4f}")
+                    try_submit(api, metrics, {"expr": expr, **metrics}, ledger)
+                    stats["grid_submitted"] += 1
+                    break
+                else:
+                    print(f"      Sharpe:{metrics['sharpe']:.2f} 自相关:{metrics['self_correlation']:.4f} → {decision}")
+            except Exception:
+                pass
+            time.sleep(SIM_INTERVAL)
+
+    return stats
+
+
+def phase_llm(api, ledger, pool, fields, count=5):
+    """Phase 3: LLM 驱动生成"""
+    print(f"\n[Phase 3] LLM 生成 {count} 个新表达式...")
+    prompt = build_llm_prompt(ledger, fields, pool, count=count)
+    expressions = call_llm(prompt)
+
+    if not expressions:
+        print("  LLM 未返回有效表达式，跳过")
+        return {"llm_tried": 0}
+
+    stats = {"llm_tried": 0, "llm_submitted": 0}
+    tried = ledger.tried_hashes()
+
+    for expr, family, settings in expressions:
+        if _expr_hash(expr) in tried:
+            continue
+        print(f"  [{family}] {expr[:60]}...")
         try:
-            alpha_data = api.simulate_and_wait(mutated_expr, settings=settings, timeout=300)
-            metrics = BrainAPI.extract_metrics(alpha_data)
-            stats["mutations_tried"] += 1
-
-            record = {
-                "expr": mutated_expr, "mother_id": alpha_id, "mutation": desc,
-                "mutation_type": mt, "alpha_id": metrics["alpha_id"],
-                "sharpe": metrics["sharpe"], "fitness": metrics["fitness"],
-                "turnover": metrics["turnover"], "drawdown": metrics["drawdown"],
-                "self_correlation": metrics["self_correlation"],
-                "settings": settings,
-            }
-
-            decision, labels = diagnose(metrics)
-            record["decision"] = decision
-            record["labels"] = labels
-            ledger.save_result(record)
-            ledger.log({"event": "mutation_sim", **record})
-
-            corr_delta = metrics["self_correlation"] - self_corr
-            sharpe_delta = metrics["sharpe"] - sharpe
-
+            metrics, decision, labels = sim_one(api, expr, settings, ledger, tag=f"llm:{family}")
+            stats["llm_tried"] += 1
             if decision == "submit":
-                stats["submitted"] += 1
-                print(f"    [合格!] Sharpe:{metrics['sharpe']:.2f} Fitness:{metrics['fitness']:.2f} 自相关:{metrics['self_correlation']:.4f}")
-                ledger.save_qualified(record)
-                try:
-                    api.submit_alpha(metrics["alpha_id"])
-                    print(f"    [已提交] {metrics['alpha_id']}")
-                    ledger.log({"event": "submitted", "alpha_id": metrics["alpha_id"]})
-                    time.sleep(3)
-                    status = api.check_submission_status(metrics["alpha_id"])
-                    print(f"    [提交状态] {status['status']} 自相关:{status['self_corr_result']}")
-                    ledger.log({"event": "submission_status", **status})
-                except Exception as e:
-                    print(f"    [提交失败] {e}")
-
-            elif decision == "mutate_decorrelate":
-                print(f"    [有信号但自相关高] Sharpe:{metrics['sharpe']:.2f} 自相关:{metrics['self_correlation']:.4f} (Δ{corr_delta:+.4f})")
-                if corr_delta < -0.05:
-                    stats["improved"] += 1
-                    print(f"    [自相关下降!] 继续以此为基础变异")
-
-            elif decision == "mutate_improve":
-                print(f"    [有信号] Sharpe:{metrics['sharpe']:.2f} (Δ{sharpe_delta:+.2f}) 标签:{labels}")
-                if sharpe_delta > 0.05:
-                    stats["improved"] += 1
-
+                print(f"    [合格!] Sharpe:{metrics['sharpe']:.2f}")
+                try_submit(api, metrics, {"expr": expr, **metrics}, ledger)
+                stats["llm_submitted"] += 1
             else:
-                print(f"    [淘汰] Sharpe:{metrics['sharpe']:.2f} Fitness:{metrics['fitness']:.2f} 标签:{labels}")
-
-        except Exception as e:
-            print(f"    [错误] {e}")
-            ledger.log({"event": "error", "mutation": desc, "error": str(e)})
-            if "429" in str(e):
-                time.sleep(30)
-            elif "401" in str(e):
-                try: api.authenticate()
-                except Exception: pass
-
+                print(f"    Sharpe:{metrics['sharpe']:.2f} → {decision} {labels}")
+        except Exception:
+            pass
         time.sleep(SIM_INTERVAL)
 
     return stats
 
 
-def phase_explore(api: BrainAPI, ledger: Ledger, batch_size: int = 5) -> dict:
-    """阶段 2：探索新方向 — 用策略模板冷启动"""
-    print("\n[探索] 用策略模板寻找新母因子...")
-    submitted_exprs = ledger.load_submitted_exprs()
-    batch = generate_batch(batch_size=batch_size, submitted_exprs=submitted_exprs)
+def phase_explore(api, ledger, batch_size=3):
+    """Phase 4: 模板探索 fallback"""
+    print(f"\n[Phase 4] 模板探索...")
+    batch = generate_batch(batch_size=batch_size, submitted_exprs=ledger.submitted_exprs())
     stats = {"explored": 0, "promising": 0}
 
-    if not batch:
-        print("  模板池已耗尽")
-        return stats
-
-    for i, (expr, family, settings) in enumerate(batch, 1):
-        print(f"\n  [{i}/{len(batch)}] [{family}] {expr[:60]}...")
+    for expr, family, settings in batch:
+        print(f"  [{family}] {expr[:60]}...")
         try:
-            alpha_data = api.simulate_and_wait(expr, settings=settings, timeout=300)
-            metrics = BrainAPI.extract_metrics(alpha_data)
+            metrics, decision, labels = sim_one(api, expr, settings, ledger, tag=f"explore:{family}")
             stats["explored"] += 1
-
-            record = {
-                "expr": expr, "family": family, "alpha_id": metrics["alpha_id"],
-                "sharpe": metrics["sharpe"], "fitness": metrics["fitness"],
-                "turnover": metrics["turnover"], "self_correlation": metrics["self_correlation"],
-                "settings": settings,
-            }
-            decision, labels = diagnose(metrics)
-            record["decision"] = decision
-            record["labels"] = labels
-            ledger.save_result(record)
-            ledger.log({"event": "explore_sim", **record})
-
-            if decision in ("submit", "mutate_decorrelate", "mutate_improve"):
+            if decision == "submit":
+                print(f"    [合格!]")
+                try_submit(api, metrics, {"expr": expr, **metrics}, ledger)
                 stats["promising"] += 1
-                tag = "合格" if decision == "submit" else "有潜力"
-                print(f"    [{tag}] Sharpe:{metrics['sharpe']:.2f} Fitness:{metrics['fitness']:.2f} 自相关:{metrics['self_correlation']:.4f}")
-                if decision == "submit":
-                    ledger.save_qualified(record)
-                    try:
-                        api.submit_alpha(metrics["alpha_id"])
-                        print(f"    [已提交] {metrics['alpha_id']}")
-                    except Exception as e:
-                        print(f"    [提交失败] {e}")
+            elif decision in ("grid_search", "mutate"):
+                stats["promising"] += 1
+                print(f"    [有潜力] Sharpe:{metrics['sharpe']:.2f} → 下轮网格搜索")
             else:
-                print(f"    [淘汰] Sharpe:{metrics['sharpe']:.2f} 标签:{labels}")
-
-        except Exception as e:
-            print(f"    [错误] {e}")
-            if "429" in str(e): time.sleep(30)
-
+                print(f"    Sharpe:{metrics['sharpe']:.2f} → {decision}")
+        except Exception:
+            pass
         time.sleep(SIM_INTERVAL)
+
+    return stats
+
+
+def phase_multiregion(api, ledger, max_candidates=2):
+    """Phase 5: 多区域尝试"""
+    data = ledger._load_json("alphas_submitted.json", {"submitted": []})
+    good = [r for r in data.get("submitted", [])
+            if _safe_float(r.get("sharpe")) >= 1.0 and _safe_float(r.get("fitness")) >= 0.8
+            and r.get("settings", {}).get("region", "USA") == "USA"
+            and not r.get("multiregion_done")]
+    good.sort(key=lambda x: _safe_float(x.get("sharpe")), reverse=True)
+
+    if not good:
+        return {"multiregion_tried": 0}
+
+    stats = {"multiregion_tried": 0, "multiregion_submitted": 0}
+    print(f"\n[Phase 5] 多区域 ({len(good[:max_candidates])} 个候选)")
+
+    for cand in good[:max_candidates]:
+        expr = cand["expr"]
+        for reg in REGIONS[1:]:
+            print(f"  [{reg['region']}] {expr[:50]}...")
+            try:
+                metrics, decision, labels = sim_one(api, expr, reg, ledger, tag=f"region:{reg['region']}")
+                stats["multiregion_tried"] += 1
+                if decision == "submit":
+                    print(f"    [合格!] {reg['region']} Sharpe:{metrics['sharpe']:.2f}")
+                    try_submit(api, metrics, {"expr": expr, **metrics}, ledger)
+                    stats["multiregion_submitted"] += 1
+                else:
+                    print(f"    Sharpe:{metrics['sharpe']:.2f} → {decision}")
+            except Exception:
+                pass
+            time.sleep(SIM_INTERVAL)
 
     return stats
 
 
 # ── 主循环 ────────────────────────────────────────────────
 
-def run_cycle(api: BrainAPI, ledger: Ledger, batch_size: int = 5, cycle_num: int = 0) -> dict:
-    cycle_stats = {"cycle": cycle_num, "start": utc_now_iso()}
+def run_cycle(api, ledger, batch_size, cycle_num):
+    cs = {"cycle": cycle_num, "start": utc_now_iso()}
 
-    # 每 5 轮或第一轮扫描平台
-    if cycle_num % 5 == 0:
-        pool = phase_scan(api, ledger)
+    if cycle_num % 5 == 1:
+        pool, fields = phase_scan(api, ledger)
     else:
-        pool = ledger.load_pool_analysis()
+        pool = ledger.load_pool()
+        fields = ledger.load_fields()
 
-    # 找母因子
     mothers = api.find_mother_candidates(pool, top_n=3) if pool.get("total") else []
-
     if mothers:
-        print(f"\n找到 {len(mothers)} 个母因子候选")
-        for m in mothers[:2]:
-            stats = phase_mother_iterate(api, ledger, m, max_mutations=batch_size)
-            cycle_stats[f"mother_{m.get('alpha_id', '')[:8]}"] = stats
-    else:
-        print("\n无母因子候选，进入探索模式")
+        cs["mother"] = phase_mother(api, ledger, mothers, max_per_mother=batch_size)
 
-    # 探索阶段（找新方向）
-    explore_stats = phase_explore(api, ledger, batch_size=max(3, batch_size - 2))
-    cycle_stats["explore"] = explore_stats
-    cycle_stats["end"] = utc_now_iso()
+    cs["grid"] = phase_grid_search(api, ledger, max_candidates=2)
 
-    ledger.save_stats(cycle_stats)
-    ledger.log({"event": "cycle_done", **cycle_stats})
-    return cycle_stats
+    if cycle_num % 3 == 0:
+        cs["llm"] = phase_llm(api, ledger, pool, fields, count=5)
+
+    cs["explore"] = phase_explore(api, ledger, batch_size=max(2, batch_size - 2))
+
+    if cycle_num % 4 == 0:
+        cs["multiregion"] = phase_multiregion(api, ledger, max_candidates=1)
+
+    cs["end"] = utc_now_iso()
+    ledger.save_stats(cs)
+    ledger.log({"event": "cycle_done", **cs})
+
+    print(f"\n[第 {cycle_num} 轮完成]")
+    return cs
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Alpha 7x24 母因子迭代闭环")
-    parser.add_argument("--workspace", default=os.path.expanduser("~/.openclaw/workspace"))
-    parser.add_argument("--batch-size", type=int, default=5)
-    parser.add_argument("--interval", type=int, default=CYCLE_INTERVAL)
-    parser.add_argument("--max-cycles", type=int, default=0)
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--workspace", default=os.path.expanduser("~/.openclaw/workspace"))
+    ap.add_argument("--batch-size", type=int, default=5)
+    ap.add_argument("--interval", type=int, default=90)
+    ap.add_argument("--max-cycles", type=int, default=0)
+    args = ap.parse_args()
 
-    workspace = Path(args.workspace)
-    ledger = Ledger(workspace)
+    ws = Path(args.workspace)
+    ledger = Ledger(ws)
 
     print("=" * 60)
-    print("Alpha 7x24 母因子迭代闭环")
+    print("Alpha 7x24 v3 — 母因子迭代 + LLM + 网格 + 多区域")
     print("=" * 60)
-    print(f"工作区: {workspace}")
-    print(f"策略: 母因子迭代 + 探索冷启动")
-    print(f"批大小: {args.batch_size}  间隔: {args.interval}s")
 
-    if args.dry_run:
-        print("\n[DRY RUN]")
-        stats = get_strategy_stats()
-        for k, v in stats.items(): print(f"  {k}: {v}")
-        return
-
-    print("\n认证 BRAIN API...")
     api = BrainAPI()
     api.authenticate()
-    print("认证成功")
+    print("认证成功\n")
 
-    cycle = 0
-    errors = 0
-
+    cycle, errors = 0, 0
     while True:
         cycle += 1
-        if args.max_cycles > 0 and cycle > args.max_cycles:
-            break
-
+        if args.max_cycles > 0 and cycle > args.max_cycles: break
         try:
-            stats = run_cycle(api, ledger, batch_size=args.batch_size, cycle_num=cycle)
+            run_cycle(api, ledger, args.batch_size, cycle)
             errors = 0
-            print(f"\n[第 {cycle} 轮完成] 等待 {args.interval}s...")
         except KeyboardInterrupt:
-            print("\n用户中断")
             break
         except Exception as e:
             errors += 1
             print(f"\n[错误] {e}")
             traceback.print_exc()
-            if errors >= MAX_CONSECUTIVE_ERRORS:
-                backoff = min(300, 60 * errors)
-                print(f"连续 {errors} 次错误，等待 {backoff}s...")
-                time.sleep(backoff)
+            if errors >= 5:
+                time.sleep(min(300, 60 * errors))
                 try: api.authenticate()
                 except Exception: pass
-
         time.sleep(args.interval)
 
     print(f"\n停止。共 {cycle} 轮。")
