@@ -203,21 +203,129 @@ class BrainAPI:
     # ── 提交 ──────────────────────────────────────────────
 
     def submit_alpha(self, alpha_id: str) -> dict:
-        """提交 Alpha 到平台审核"""
+        """提交 Alpha 到平台审核（competition=challenge）"""
         try:
-            return self._request(f"/alphas/{alpha_id}/submit", method="POST")
+            return self._request(f"/alphas/{alpha_id}/submit?competition=challenge", method="POST")
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="ignore")
             raise RuntimeError(f"提交失败 HTTP {e.code}: {body}")
 
-    # ── 工具 ──────────────────────────────────────────────
+    def check_submission_status(self, alpha_id: str) -> dict:
+        """检查提交后的实际状态（区分 201 接受 vs 真正 ACTIVE）"""
+        alpha = self.get_alpha(alpha_id)
+        checks = alpha.get("is", {}).get("checks", []) or []
+        self_corr_result = None
+        self_corr_value = None
+        for c in checks:
+            if c.get("name") == "SELF_CORRELATION":
+                self_corr_result = c.get("result")
+                self_corr_value = c.get("value")
+                break
+        return {
+            "alpha_id": alpha_id,
+            "status": alpha.get("status", ""),
+            "date_submitted": alpha.get("dateSubmitted"),
+            "self_corr_result": self_corr_result,
+            "self_corr_value": _safe_float(self_corr_value),
+        }
+
+    # ── 平台分析 ──────────────────────────────────────────
 
     def get_data_fields(self) -> list:
         """获取可用的数据字段列表"""
         try:
-            return self._request("/data-fields?instrumentType=EQUITY&region=USA&delay=1&universe=TOP3000")
+            result = self._request("/data-fields?instrumentType=EQUITY&region=USA&delay=1&universe=TOP3000")
+            if isinstance(result, dict):
+                return result.get("results", [])
+            return result if isinstance(result, list) else []
         except Exception:
             return []
+
+    def scan_alpha_pool(self, limit: int = 500) -> dict:
+        """扫描账号 alpha 池，返回分析结果"""
+        all_alphas = []
+        offset = 0
+        while offset < limit:
+            batch_size = min(100, limit - offset)
+            batch = self.list_alphas(limit=batch_size, offset=offset)
+            if not batch:
+                break
+            all_alphas.extend(batch)
+            offset += len(batch)
+            if len(batch) < batch_size:
+                break
+
+        analysis = {
+            "total": len(all_alphas),
+            "by_status": {},
+            "active_alphas": [],
+            "near_pass": [],
+            "high_sharpe_blocked": [],
+            "expressions": {},
+        }
+
+        for a in all_alphas:
+            status = a.get("status", "UNKNOWN")
+            analysis["by_status"][status] = analysis["by_status"].get(status, 0) + 1
+
+            metrics = self.extract_metrics(a)
+            expr = a.get("regular", {})
+            if isinstance(expr, dict):
+                expr = expr.get("code", "")
+
+            if status == "ACTIVE":
+                analysis["active_alphas"].append({
+                    **metrics, "expression": expr,
+                })
+
+            if (metrics["sharpe"] >= 1.10 and metrics["fitness"] >= 0.85
+                    and metrics["self_correlation"] > 0.7):
+                analysis["high_sharpe_blocked"].append({
+                    **metrics, "expression": expr,
+                })
+
+            if (metrics["sharpe"] >= 1.0 and metrics["fitness"] >= 0.8
+                    and metrics["self_correlation"] <= 0.7
+                    and status != "ACTIVE"):
+                analysis["near_pass"].append({
+                    **metrics, "expression": expr,
+                })
+
+            if expr:
+                analysis["expressions"][metrics.get("alpha_id", "")] = expr
+
+        analysis["near_pass"].sort(key=lambda x: x["sharpe"], reverse=True)
+        analysis["high_sharpe_blocked"].sort(key=lambda x: x["sharpe"], reverse=True)
+
+        return analysis
+
+    def find_mother_candidates(self, pool_analysis: dict = None, top_n: int = 5) -> list:
+        """从 alpha 池中找出最佳母因子候选"""
+        if pool_analysis is None:
+            pool_analysis = self.scan_alpha_pool()
+
+        candidates = []
+
+        for a in pool_analysis.get("high_sharpe_blocked", []):
+            if a["sharpe"] >= 1.25 and a["fitness"] >= 1.0:
+                candidates.append({
+                    **a,
+                    "reason": "high_sharpe_blocked_by_correlation",
+                    "priority": a["sharpe"] * 0.6 + a["fitness"] * 0.4,
+                })
+
+        for a in pool_analysis.get("near_pass", []):
+            if a["sharpe"] >= 1.10:
+                candidates.append({
+                    **a,
+                    "reason": "near_pass_low_correlation",
+                    "priority": a["sharpe"] * 0.4 + a["fitness"] * 0.3 + (0.7 - a["self_correlation"]) * 0.3,
+                })
+
+        candidates.sort(key=lambda x: x["priority"], reverse=True)
+        return candidates[:top_n]
+
+    # ── 工具 ──────────────────────────────────────────────
 
     @staticmethod
     def extract_metrics(alpha: dict) -> dict:
