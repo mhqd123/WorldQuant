@@ -44,7 +44,9 @@ def build_family_stats(candidates, results, submission_rows):
         'attempts': 0,
         'near_pass_count': 0,
         'submit_count': 0,
-        'avg_mutation_gain': 0.0,
+        'platform_active_count': 0,
+        'mutation_gain_sum': 0.0,
+        'mutation_gain_count': 0,
         'recent_success_rate': 0.0,
         'near_pass_density': 0.0,
         'novelty_budget_need': 0.2,
@@ -52,8 +54,10 @@ def build_family_stats(candidates, results, submission_rows):
         'consecutive_no_submit_candidate': 0,
         'consecutive_no_gain_mutations': 0,
     })
-    for row in results:
-        family_id = row.get('family_id') or row.get('alpha_id') or 'unknown'
+
+    sorted_results = sorted(results, key=lambda r: r.get('ts') or r.get('sim_id') or '', reverse=False)
+    for row in sorted_results:
+        family_id = row.get('family_id') or 'unknown'
         s = stats[family_id]
         s['attempts'] += 1
         labels = row.get('diagnosis_labels', [])
@@ -67,17 +71,22 @@ def build_family_stats(candidates, results, submission_rows):
             s['consecutive_no_submit_candidate'] = 0
         else:
             s['consecutive_no_submit_candidate'] += 1
-        s['avg_mutation_gain'] = max(s['avg_mutation_gain'], float(row.get('priority_score', 0.0) or 0.0))
+        gain = float(row.get('priority_score', 0.0) or 0.0)
+        s['mutation_gain_sum'] += gain
+        s['mutation_gain_count'] += 1
+
     for row in submission_rows:
-        family_id = row.get('family') or 'unknown'
+        family_id = row.get('family_id') or row.get('family') or 'unknown'
         s = stats[family_id]
         if row.get('status') == 'ACTIVE' or row.get('dateSubmitted'):
-            s['submit_count'] += 1
-            s['recent_success_rate'] += 1.0
+            s['platform_active_count'] += 1
+
     for family_id, s in stats.items():
         attempts = max(1, s['attempts'])
         s['near_pass_density'] = s['near_pass_count'] / attempts
-        s['recent_success_rate'] = s['submit_count'] / attempts
+        total_submit = s['submit_count'] + s['platform_active_count']
+        s['recent_success_rate'] = total_submit / attempts
+        s['avg_mutation_gain'] = s['mutation_gain_sum'] / max(1, s['mutation_gain_count'])
         if s['consecutive_no_gain_mutations'] >= 2:
             s['branch_stop_reason'] = '2_mutations_without_gain'
     return dict(stats)

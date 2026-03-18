@@ -154,7 +154,7 @@ def schedule_next_jobs(
             if bucket not in {"retry", "improve", "exploit", "explore"}:
                 continue
             leftovers.extend([dict(job, source_bucket=bucket) for job in jobs])
-        seen = {(j.get("candidate_id"), j.get("source_bucket")) for j in picked}
-        leftovers = [j for j in leftovers if (j.get("candidate_id"), j.get("source_bucket")) not in seen]
+        seen = {(j.get("alpha_id"), j.get("source_bucket")) for j in picked}
+        leftovers = [j for j in leftovers if (j.get("alpha_id"), j.get("source_bucket")) not in seen]
         picked.extend(pick_with_bucket_constraints(leftovers, remaining, local_active + picked, family_stats))
     return picked

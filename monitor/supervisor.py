@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, time, datetime, subprocess, re, signal
+import json, os, time, datetime, subprocess, re, signal
 from pathlib import Path
 
 MON = Path('/root/.openclaw/workspace/monitor')
@@ -40,7 +40,6 @@ def parse_time(s):
 
 def pid_alive(pid):
     try:
-        Path(f'/proc/{pid}').exists()
         return Path(f'/proc/{pid}').exists()
     except Exception:
         return False
@@ -64,7 +63,8 @@ def ensure_loop_running(state):
     if pid and pid_alive(pid):
         state['loopPid'] = pid
         return state, False
-    proc = subprocess.Popen(['nohup', 'python3', str(AUTO)], cwd=str(MON.parent), stdout=open(AUTOLOG, 'a'), stderr=subprocess.STDOUT, preexec_fn=None)
+    log_fh = open(AUTOLOG, 'a')
+    proc = subprocess.Popen(['nohup', 'python3', str(AUTO)], cwd=str(MON.parent), stdout=log_fh, stderr=subprocess.STDOUT, preexec_fn=None)
     AUTOPID.write_text(str(proc.pid))
     state['loopPid'] = proc.pid
     state['lastAction'] = 'restarted_autoloop'
@@ -114,5 +114,4 @@ def main():
 
 
 if __name__ == '__main__':
-    import os
     main()

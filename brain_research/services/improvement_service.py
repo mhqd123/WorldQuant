@@ -114,8 +114,10 @@ class ImprovementService:
                 expr = expr.replace('rank(ts_mean(volume, 5) / ts_mean(volume,', 'rank(volume / ts_mean(volume,')
             expected = 'de-correlation'
         elif action == 'add_smoothing':
-            expr = expr.replace('(1 + high - low)', '(1 + ts_mean(high - low, 3))')
-            expr = expr.replace('ts_mean(high - low, 3)', 'ts_mean(high - low, 5)')
+            if '(1 + high - low)' in expr:
+                expr = expr.replace('(1 + high - low)', '(1 + ts_mean(high - low, 3))')
+            elif 'ts_mean(high - low, 3)' in expr:
+                expr = expr.replace('ts_mean(high - low, 3)', 'ts_mean(high - low, 5)')
             expected = 'turnover down'
         elif action == 'remove_smoothing':
             expr = expr.replace('(1 + ts_mean(high - low, 5))', '(1 + high - low)')
